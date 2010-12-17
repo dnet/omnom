@@ -1,4 +1,5 @@
 from django.conf.urls.defaults import *
+from tags import views as tags
 
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
@@ -6,7 +7,8 @@ from django.conf.urls.defaults import *
 
 urlpatterns = patterns('',
     # Example:
-    # (r'^tagger/', include('tagger.foo.urls')),
+    (r'^delicious/', tags.delicious),
+    (r'^tags/', tags.tags),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
