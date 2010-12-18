@@ -11,7 +11,7 @@ class Tag(models.Model):
 class URI(models.Model):
     tags = models.ManyToManyField(Tag)
     url = models.TextField(unique=True,db_index=True)
-    created = models.DateTimeField()
+    created = models.DateTimeField(db_index=True)
     private = models.BooleanField()
     title = models.TextField()
     notes = models.TextField()
