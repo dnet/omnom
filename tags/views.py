@@ -4,6 +4,8 @@ from models import URI
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
+from django.contrib.auth import authenticate, login
+from django.template import RequestContext
 from tagger import conf
 from tagger.utils import unescape
 from tagger.tags.forms import AddBookmarkForm
@@ -26,7 +28,7 @@ def getOne(request):
                                                     'private': obj[0].private,
                                                     'notes': obj[0].notes,
                                                     'tags': ','.join((unicode(x) for x in obj[0].tags.all()))
-                                                    })
+                                                    }, context_instance=RequestContext(request))
         else:
             return HttpResponse("no result")
     return HttpResponse("no uri?")
@@ -45,16 +47,19 @@ def recent(request):
                                                                    'private': obj.private,
                                                                    'notes': unescape(obj.notes),
                                                                    'tags': [unicode(x) for x in obj.tags.all()]
-                                                                   } for obj in res]})
+                                                                   } for obj in res]}, context_instance=RequestContext(request))
     else:
         return HttpResponse("no result")
 
-def list(request,tags):
+def list(request,tags=None):
     try: limit=int(request.GET.get('limit'))
     except: limit=25
     try: page=int(request.GET.get('page'))
     except: page=1
-    res=URI.objects.filter(tags__name__in=urllib.unquote_plus(tags).split(' ')).order_by('created').reverse()
+    if tags:
+        res=URI.objects.filter(tags__name__in=urllib.unquote_plus(tags).split(' ')).order_by('created').reverse()
+    else:
+        res=URI.objects.all().order_by('created').reverse()
     paginator = Paginator(res, limit)
     try:
         res = paginator.page(page)
@@ -68,7 +73,7 @@ def list(request,tags):
                       'tags': [unicode(x) for x in obj.tags.all()]
                       } for obj in res.object_list]
     if res:
-        return render_to_response('list.html', { 'items': res, 'limit': limit } )
+        return render_to_response('list.html', { 'items': res, 'limit': limit }, context_instance=RequestContext(request) )
     else:
         return HttpResponse("no result")
 

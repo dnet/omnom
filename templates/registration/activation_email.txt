@@ -1,0 +1,17 @@
+{% load i18n %}
+
+{% trans "Here's your activation key" %}
+{{activation_key}}
+
+{% trans "Please click on this link to activate your account" %}
+http://{{site}}{% url registration_activate activation_key %}
+
+{% trans "This link will expire in:" %} {{expiration_days}} {% trans "days." %}
+
+{% comment %}
+http://docs.djangoproject.com/en/dev/ref/contrib/sites/
+{{site}}
+{{site.name}}
+{{site.domain}}
+(by default name == domain)
+{% endcomment %}

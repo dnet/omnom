@@ -5,5 +5,7 @@ a { text-decoration: none; color: #0088dd; }
 a[href]:hover { text-decoration: underline; }
 input[type=text] { width: 598px; }
 .suggestedTag { cursor: pointer ; color: #0088dd; }
-.xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;}
+.xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;width:800px;}
 [rel=tag] { background-color: #ddd; float: right; margin-left: 5px; }
+#auth { float: right; }
+.pagination {padding:12px 0 12px 65px;}
