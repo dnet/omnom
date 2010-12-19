@@ -1,4 +1,5 @@
 from django.conf.urls.defaults import *
+from django.conf import settings
 from tags import views as tags
 
 # Uncomment the next two lines to enable the admin:
@@ -7,7 +8,9 @@ from tags import views as tags
 
 urlpatterns = patterns('',
     # Example:
-    (r'^delicious/', tags.delicious),
+    (r'^getOne/', tags.getOne),
+    (r'^add/', tags.add),
+    (r'^recent/', tags.recent),
     (r'^tags/', tags.tags),
 
     # Uncomment the admin/doc line below to enable admin documentation:
@@ -16,3 +19,8 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     # (r'^admin/', include(admin.site.urls)),
 )
+
+if settings.DEV_SERVER:
+    urlpatterns += patterns('',
+        (r'^site_media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_PATH}),
+    )

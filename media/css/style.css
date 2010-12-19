@@ -1,0 +1,7 @@
+body { border: 0; padding: 0; font-family: Verdana,Arial,Helvetica,sans-serif; }
+input { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; }
+fieldset { font-size: 0.8em; margin-bottom: 14px; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;}
+a { text-decoration: none; color: #0088dd; }
+a[href]:hover { text-decoration: underline; }
+input[type=text] { width: 598px; }
+.suggestedTag { cursor: pointer ; color: #0088dd; }

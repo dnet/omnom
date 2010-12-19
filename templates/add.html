@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load tagger %}
+{% block scripts %}
+<script type="text/javascript" src="{%media_url%}/js/tinymce/tiny_mce.js"></script>
+<script type="text/javascript" src="{%media_url%}/js/addbookmark.js"></script>
+<script type="text/javascript" src="{%media_url%}/js/jquery.1.4.2.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+    $(".suggestedTag").focus( function(event) { $(this).blur(); return false; });
+    $(".suggestedTag").click( function(event) {
+        var self=$(this)
+         if(document.addForm.tags.value) {
+              document.addForm.tags.value+=', '; }
+         document.addForm.tags.value+=self.attr('name');
+         self.hide();
+    });
+});
+</script>
+{% endblock %}
+
+{%block main%}
+<h2>add entry</h2>
+<form class="xfolkentry" name="addForm" action="{% root_url %}/add/" method="get">
+  <table>
+    <tr><td>{{form.url.label_tag}}</td><td>{{form.url}}</td></tr>
+    <tr><td>{{form.title.label_tag}}</td><td>{{form.title}}</td></tr>
+    <tr><td>{{form.notes.label_tag}}</td><td>{{form.notes}}</td></tr>
+    <tr><td>{{form.tags.label_tag}}</td><td>{{form.tags}}</td></tr>
+    <tr><td>Recommended Tags</td><td width="598px">
+        {% for tag in suggestedTags %}
+        <span class="suggestedTag" name="{{tag}}">{{tag}}{%if not forloop.last%}, {%endif%}</span>
+        {% endfor %}
+    </td></tr>
+    <tr><td>{{form.private.label_tag}}</td><td>{{form.private}}</td></tr>
+    <tr><td /><td><input type="submit" value="submit" /></td></tr>
+  </table>
+</form>
+{%endblock%}

@@ -1,0 +1,23 @@
+{% load tagger %}<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="hu" xml:lang="hu">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta http-equiv="content-language" content="en" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <title>{% block title %}[!] tagger {% endblock %}</title>
+    {% block scripts %}
+    {% endblock %}
+    <link rel="stylesheet" type="text/css" media="all" href="{% media_url %}/css/style.css" />
+    <link rel="stylesheet" type="text/css" media="print" href="{% media_url %}/css/print.css" />
+    {% block styles %}
+    {% endblock %}
+</head>
+<body>
+<a href="javascript:var selection = '';if (window.getSelection) {selection = window.getSelection();} else if (document.getSelection) {selection = document.getSelection();} else if (document.selection) {selection = document.selection.createRange().text;};x=document;a=encodeURIComponent(x.location.href);t=encodeURIComponent(x.title);d=encodeURIComponent(selection);open('{%root_url%}/add/?popup=1&amp;url='+a+'&amp;title='+t+'&amp;notes='+d,'tagger','modal=1,status=0,scrollbars=1,toolbar=0,resizable=1,width=730,height=465,left='+(screen.width-730)/2+',top='+(screen.height-425)/2);void 0;">Bookmarklet</a>
+{% block main %}
+{% endblock %}
+{% block other_content %} {% endblock %}
+</body>
+</html>
