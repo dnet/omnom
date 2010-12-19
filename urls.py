@@ -12,6 +12,7 @@ urlpatterns = patterns('',
     (r'^add/', tags.add),
     (r'^recent/', tags.recent),
     (r'^tags/', tags.tags),
+    (r'^list/(?P<tags>.+)', tags.list),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),

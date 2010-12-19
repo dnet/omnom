@@ -3,6 +3,7 @@
 from models import URI
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
+from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from tagger import conf
 from tagger.utils import unescape
 from tagger.tags.forms import AddBookmarkForm
@@ -45,6 +46,29 @@ def recent(request):
                                                                    'notes': unescape(obj.notes),
                                                                    'tags': [unicode(x) for x in obj.tags.all()]
                                                                    } for obj in res]})
+    else:
+        return HttpResponse("no result")
+
+def list(request,tags):
+    try: limit=int(request.GET.get('limit'))
+    except: limit=25
+    try: page=int(request.GET.get('page'))
+    except: page=1
+    res=URI.objects.filter(tags__name__in=urllib.unquote_plus(tags).split(' ')).order_by('created').reverse()
+    paginator = Paginator(res, limit)
+    try:
+        res = paginator.page(page)
+    except (EmptyPage, InvalidPage):
+        res = paginator.page(paginator.num_pages)
+    res.object_list=[{'url': obj.url,
+                      'title': obj.title,
+                      'created': obj.created,
+                      'private': obj.private,
+                      'notes': unescape(obj.notes),
+                      'tags': [unicode(x) for x in obj.tags.all()]
+                      } for obj in res.object_list]
+    if res:
+        return render_to_response('list.html', { 'items': res, 'limit': limit } )
     else:
         return HttpResponse("no result")
 
