@@ -67,6 +67,8 @@ openCalaisParams=''.join(['<c:params xmlns:c="http://s.opencalais.com/1/pred/" x
                           '</c:externalMetadata>',
                           '</c:params>'])
 def getCalaisTags(text):
+    if not text:
+        return []
     res=json.load(urllib2.urlopen('https://api.opencalais.com/enlighten/rest/',
                                     data=urllib.urlencode({'licenseID': conf.openCalaisAPIKey,
                                                            'content': text.encode('utf8'),
