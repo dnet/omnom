@@ -1,10 +1,11 @@
-# Create your views here.
-
-from models import URI
+from models import Bookmark, Tag, URI
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
 from django.template import RequestContext
 from tagger import conf
 from tagger.utils import unescape
@@ -12,54 +13,30 @@ from tagger.tags.forms import AddBookmarkForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup
 import urllib2, re, urllib, json
+from datetime import datetime
 
 #TODO split bookmarking and url tagging
 
-def getOne(request):
-    uri=request.GET.get('uri','')
-    if uri:
-        obj=URI.objects.filter(url=uri)
-        if len(obj)>1:
-            return HttpResponse("more than 1 result")
-        if len(obj):
-            return render_to_response('delicious.html', {'url': obj[0].url,
-                                                    'title': obj[0].title,
-                                                    'created': obj[0].created,
-                                                    'private': obj[0].private,
-                                                    'notes': obj[0].notes,
-                                                    'tags': ','.join((unicode(x) for x in obj[0].tags.all()))
-                                                    }, context_instance=RequestContext(request))
-        else:
-            return HttpResponse("no result")
-    return HttpResponse("no uri?")
+def list(request,tags=None,user=None):
+    if user:
+        try: user = User.objects.get(username=user)
+        except ObjectDoesNotExist: return HttpResponse("no such user")
 
-def recent(request):
-    limit=10
     try: limit=int(request.GET.get('limit'))
-    except: pass
-    #if request.GET.get('format','')=="RSS":
-    #    template='recent-rss.html'
-    res=URI.objects.order_by('created').reverse()[:limit]
-    if res:
-        return render_to_response('recent-xfolk.html', {'items': [{'url': obj.url,
-                                                                   'title': obj.title,
-                                                                   'created': obj.created,
-                                                                   'private': obj.private,
-                                                                   'notes': unescape(obj.notes),
-                                                                   'tags': [unicode(x) for x in obj.tags.all()]
-                                                                   } for obj in res]}, context_instance=RequestContext(request))
-    else:
-        return HttpResponse("no result")
+    except TypeError, ValueError: limit=25
 
-def list(request,tags=None):
-    try: limit=int(request.GET.get('limit'))
-    except: limit=25
     try: page=int(request.GET.get('page'))
-    except: page=1
+    except TypeError, ValueError: page=1
+
+    res=Bookmark.objects.filter(private=0)
     if tags:
-        res=URI.objects.filter(tags__name__in=urllib.unquote_plus(tags).split(' ')).order_by('created').reverse()
-    else:
-        res=URI.objects.all().order_by('created').reverse()
+        for tag in urllib.unquote_plus(tags).split(' '):
+            t=Tag.objects.get(name=tag)
+            res=res.filter(tags=t)
+    if user:
+        res=res.filter(user=user)
+    res=res.order_by('created').reverse()
+    total=res.count()
     paginator = Paginator(res, limit)
     try:
         res = paginator.page(page)
@@ -73,7 +50,7 @@ def list(request,tags=None):
                       'tags': [unicode(x) for x in obj.tags.all()]
                       } for obj in res.object_list]
     if res:
-        return render_to_response('list.html', { 'items': res, 'limit': limit }, context_instance=RequestContext(request) )
+        return render_to_response('list.html', { 'items': res, 'limit': limit, 'total': total }, context_instance=RequestContext(request) )
     else:
         return HttpResponse("no result")
 
@@ -86,15 +63,33 @@ def add(request):
         suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
         suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) })
+    else:
+        # TODO implement edit!
+        try:
+            url=URI.objects.get(url=form.cleaned_data['url'])
+        except ObjectDoesNotExist:
+            url=URI(url=form.cleaned_data['url'])
+            url.save()
+        uri=Bookmark(url=url,
+                     user=request.user,
+                     created=datetime.today(),
+                     private=form.cleaned_data['private'],
+                     title=form.cleaned_data['title'],
+                     notes=form.cleaned_data['notes'],
+                     )
+        uri.save()
+        uri.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
+    return HttpResponse("ok")
 
-openCalaisParams=''.join(['<c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
-                          '<c:processingDirectives c:contentType="text/txt" c:enableMetadataType="SocialTags" c:outputFormat="application/json" c:docRDFaccesible="false" >',
-                          '</c:processingDirectives>',
-                          '<c:userDirectives c:allowDistribution="false" c:allowSearch="false" c:externalID="17cabs901" c:submitter="ABC">',
-                          '</c:userDirectives>',
-                          '<c:externalMetadata>',
-                          '</c:externalMetadata>',
-                          '</c:params>'])
+openCalaisParams=''.join(
+    ['<c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
+     '<c:processingDirectives c:contentType="text/txt" c:enableMetadataType="SocialTags" c:outputFormat="application/json" c:docRDFaccesible="false" >',
+     '</c:processingDirectives>',
+     '<c:userDirectives c:allowDistribution="false" c:allowSearch="false" c:externalID="17cabs901" c:submitter="ABC">',
+     '</c:userDirectives>',
+     '<c:externalMetadata>',
+     '</c:externalMetadata>',
+     '</c:params>'])
 def getCalaisTags(text):
     if not text:
         return []

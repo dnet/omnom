@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
-from tagger.tags.models import Tag, URI
+from django.core.exceptions import ObjectDoesNotExist
+from tagger.tags.models import Tag, Bookmark, URI
+from django.contrib.auth.models import User
 
 from BeautifulSoup import BeautifulSoup
 from datetime import datetime
@@ -38,30 +40,43 @@ class Command(BaseCommand):
     help = 'imports a delicious bookmark file'
 
     def handle(self, *args, **options):
-        for file in args:
-            f=open(file)
-            raw=f.readlines()
-            f.close()
-            html=unescape(str(tidy.parseString(' '.join(raw), **{'output_xhtml' : 1,
-                                                                 'add_xml_decl' : 0,
-                                                                 'indent' : 0,
-                                                                 'tidy_mark' : 0,
-                                                                 'doctype' : "strict",
-                                                                 'char-encoding' : "utf8",
-                                                                 'wrap' : 0})).decode('utf8'))
-            soup=BeautifulSoup(html)
-            for item in soup.findAll('dt'):
-                desc=''
-                next=item.findNextSiblings()[0]
+        user=None
+        try:
+            user = User.objects.get(username=args[0])
+        except User.DoesNotExist:
+            print "non-existant user"
+            return
+        f=open(args[1])
+        raw=f.readlines()
+        f.close()
+        html=unescape(str(tidy.parseString(' '.join(raw), **{'output_xhtml' : 1,
+                                                             'add_xml_decl' : 0,
+                                                             'indent' : 0,
+                                                             'tidy_mark' : 0,
+                                                             'doctype' : "strict",
+                                                             'char-encoding' : "utf8",
+                                                             'wrap' : 0})).decode('utf8'))
+        soup=BeautifulSoup(html)
+        for item in soup.findAll('dt'):
+            desc=''
+            next=item.findNextSiblings()
+            if next:
+                next=next[0]
                 if 'name' in dir(next) and next.name=='dd':
                     desc=u''.join([unicode(x) for x in next.contents])
-                uri=URI(url=item.a['href'],
-                    created=datetime.fromtimestamp(float(item.a['add_date'])),
-                    private=item.a['private'],
-                    title=unicode(item.a.string),
-                    notes=desc)
-                uri.save()
-                uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
-                #print uri,uri.created,uri.tags.all()
+            try:
+                url=URI.objects.get(url=item.a['href'])
+            except ObjectDoesNotExist:
+                url=URI(url=item.a['href'])
+                url.save()
+            uri=Bookmark(url=url,
+                         user=user,
+                         created=datetime.fromtimestamp(float(item.a['add_date'])),
+                         private=item.a['private']=='1',
+                         title=unicode(item.a.string),
+                         notes=desc)
+            uri.save()
+            uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
+            #print uri,uri.created,uri.tags.all()
 
-            self.stdout.write('Successfully imported bookmarks\n')
+        self.stdout.write('Successfully imported bookmarks\n')

@@ -7,20 +7,15 @@ from tags import views as tags
 # admin.autodiscover()
 
 urlpatterns = patterns('',
-    # Example:
-    (r'^getOne/', tags.getOne),
-    (r'^add/', tags.add),
-    (r'^recent/', tags.recent),
-    (r'^tags/', tags.tags),
-    #(r'^import/$', tags.import),
-    (r'^list/$', tags.list),
-    (r'^list/(?P<tags>.+)', tags.list),
-    (r'^accounts/logout/$', 'django.contrib.auth.views.logout', {'next_page' : '/recent/'}),
+    (r'^accounts/logout$', 'django.contrib.auth.views.logout', {'next_page' : '/'}),
     (r'^accounts/', include('registration.urls')),
-    (r'^(?P<username>.+)/$', tags.list),
-
-    # Uncomment the admin/doc line below to enable admin documentation:
-    # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
+    (r'^tags/', tags.tags),
+    (r'^add/', tags.add),
+    #(r'^import/$', tags.import),
+    (r'^$', tags.list),                                       # list all (except private)
+    (r'^t/(?P<tags>.+)?', tags.list),                         # ... filtered by tags
+    (r'^u/(?P<user>.+)/$', tags.list),                        # list only users items
+    (r'^u/(?P<user>.+)/(?P<tags>.+)?$', tags.list),           # ... filtered by tags
 
     # Uncomment the next line to enable the admin:
     #(r'^admin/', include(admin.site.urls)),
