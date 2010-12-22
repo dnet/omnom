@@ -1,61 +1,67 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{%load tagger%}
+{%block scripts%}
+   {%if tagcloud%}
+      <!--[if IE]><script language="javascript" type="text/javascript" src="../../include/excanvas.js"></script><![endif]-->
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/jquery.js"></script>
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/jquery.sparkline.js" ></script>
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/jquery-ui-p.min.js"></script>
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/jquery.event.wheel.js"></script>
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/tagcloud.js"></script>
+      <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/timecloud.js"></script>
+      <script type="text/javascript">
+         $(document).ready(function() {
+               $("#timecloud").timecloud({"timecloud":{{tagcloud|safe}},
+                                          "start": -1,
+                                          "sparklineStyle": { type:'line',
+                                                              lineColor:'Navy',
+                                                              height:'30px',
+                                                              chartRangeMin: '0',
+                                                              width:'300px' },
+                                          "urlprefix": '{{baseurl}}{%if tags%}+{%endif%}'});
+               });
+      </script>
+   {%endif%}
+{%endblock%}
+
+{%block styles%}
+   {%if tagcloud%}
+    <link rel="stylesheet" type="text/css" media="all" href="{% media_url %}/css/tagcloud.css" />
+   {%endif%}
+{%endblock%}
+
 {%block content%}
-<div id="total"><span>{{total}}</span></div>
-{%if items.has_other_pages %}
-<div class="pagination">
-  <span class="step-links">
-    {% if items.has_previous %}
-    <a href="?page={{ items.previous_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">previous</a>
-    {% endif %}
-    <span class="current">
-      Page {{ items.number }} of {{ items.paginator.num_pages }}.
-    </span>
-  <span class="limits">
-    {%if limit == 10 %}10{%else%}(<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=10">10</a>{%endif%}
-    {%if limit == 25 %}25{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=25">25</a>{%endif%}
-    {%if limit == 50 %}50{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=50">50</a>{%endif%}
-    {%if limit == 100 %}100{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=100">100</a>{%endif%})
-  </span>
-    {% if items.has_next %}
-    <a href="?page={{ items.next_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">next</a>
-    {% endif %}
-  </span>
-</div>
+<br style="clear: both" />
+{%if tagcloud %}
+<div id="timecloud"></div>
+{%endif%}
+{%if tags%}
+<ul class="tags">
+{%for tag, link in tags%}
+<li><a rel="tag" href="{{link}}">{{tag}}</a></li>
+{%endfor%}
+</ul>
 {%endif%}
 
+<div id="totalcontainer">{% include "paging.html" %}
+<span id="total">{{total}}</span></div>
 {% for item in items.object_list %}
 <div class="xfolkentry">
   <div><a class="taggedlink" href="{{item.url}}">{{item.title|safe}}</a></div>
   <div class="description">{{item.notes|safe}}</div>
   <div class="meta">
+    <span class="tagcontainer">
     {%for tag in item.tags%}
-    <a rel="tag" href="/list/{{tag}}">{{tag}}</a>
+        {%if user%}
+        <a rel="tag" href="/u/{{user}}/{{tag}}">{{tag}}</a>
+        {%else%}
+        <a rel="tag" href="/t/{{tag}}">{{tag}}</a>
+        {%endif%}
     {%endfor%}
+    </span>
     ... on {{item.created}}
   </div>
+  <a href="">Edit</a> | <a href="">Delete</a>
 </div>
 {%endfor%}
-
-{%if items.has_other_pages %}
-<div class="pagination">
-  <span class="step-links">
-    {% if items.has_previous %}
-    <a href="?page={{ items.previous_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">previous</a>
-    {% endif %}
-    <span class="current">
-      Page {{ items.number }} of {{ items.paginator.num_pages }}.
-    </span>
-  <span class="limits">
-    {%if limit == 10 %}10{%else%}(<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=10">10</a>{%endif%}
-    {%if limit == 25 %}25{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=25">25</a>{%endif%}
-    {%if limit == 50 %}50{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=50">50</a>{%endif%}
-    {%if limit == 100 %}100{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=100">100</a>{%endif%})
-  </span>
-
-    {% if items.has_next %}
-    <a href="?page={{ items.next_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">next</a>
-    {% endif %}
-  </span>
-</div>
-{%endif%}
+{% include "paging.html" %}
 {%endblock%}

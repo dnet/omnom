@@ -1,13 +1,20 @@
 body { border: 0; padding: 0; font-family: Verdana,Arial,Helvetica,sans-serif; }
+[rel=tag] { background-color: #ddd;  margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; }
+[rel=tag]:hover { text-decoration: none; color: #fff; }
 input { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; }
 fieldset { font-size: 0.8em; margin-bottom: 14px; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;}
 a { text-decoration: none; color: #0088dd; }
-a[href]:hover { text-decoration: none; color: #fff; }
+a[href]:hover { text-decoration: none; color: #000; }
 input[type=text] { width: 598px; }
 .suggestedTag { cursor: pointer ; color: #0088dd; }
 .xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;width:800px;}
-[rel=tag] { background-color: #ddd; float: right; margin-left: 5px; padding: 2px; }
+.xfolkentry [rel=tag] {float: right; }
+.meta .tagcontainer { width: 500px; float: right;}
 #auth { float: right; }
 .pagination {padding:12px 0 12px 65px;}
-#total {padding:12px 0 12px 65px;width:800px;}
-#total span { float: right; background-color: #0088dd; color: #fff; padding: 3px;}
+#totalcontainer {padding:12px 0 12px 65px;width:800px; margin-bottom: -6px; }
+#total { float: right; background-color: #0088dd; color: #fff; padding: 3px; color: #fff; }
+#timecloud { width: 300px; float: right; margin-right: 15px; margin-top: 15px; }
+.control-container { display: none; }
+ul.tags { margin: 0px; padding:5px 0 5px 65px;}
+.tags li { display: inline; list-style: none; }

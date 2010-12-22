@@ -17,7 +17,7 @@ from datetime import datetime
 
 #TODO split bookmarking and url tagging
 
-def list(request,tags=None,user=None):
+def list(request,tags=[],user=None):
     if user:
         try: user = User.objects.get(username=user)
         except ObjectDoesNotExist: return HttpResponse("no such user")
@@ -28,29 +28,70 @@ def list(request,tags=None,user=None):
     try: page=int(request.GET.get('page'))
     except TypeError, ValueError: page=1
 
-    res=Bookmark.objects.filter(private=0)
-    if tags:
-        for tag in urllib.unquote_plus(tags).split(' '):
-            t=Tag.objects.get(name=tag)
-            res=res.filter(tags=t)
+    baseurl=request.path.split('?')[0]
+    plist=baseurl.split('/')
+    if plist[1]=='t':
+        path='/'
+    else:
+        path='/'.join(plist[:-1])
+
+    query=Bookmark.objects
+    if user and request.user!=user:
+        query=query.filter(private=0)
     if user:
-        res=res.filter(user=user)
-    res=res.order_by('created').reverse()
-    total=res.count()
-    paginator = Paginator(res, limit)
+        query=query.filter(user=user)
+    if tags:
+        tags=urllib.unquote_plus(tags).split(' ')
+        for tag in tags:
+            if not tag: continue
+            t=Tag.objects.get(name=tag)
+            query=query.filter(tags=t)
+    query=query.order_by('created').reverse()
+    tagcloud=[]
+    if (tags or user) and request.GET.get('format','') == '':
+        timetags={}
+        for item in query:
+            d=item.created.strftime("%Y-%m-%d")
+            timetags[d]=timetags.get(d,{})
+            for t in item.tags.all():
+                if t.name in tags: continue
+                timetags[d][t.name]=timetags[d].get(t.name,0)+1
+        tagcloud=[(k, sorted(v.items())) for k, v in sorted(timetags.items())]
+    total=query.count()
+    paginator = Paginator(query, limit)
     try:
         res = paginator.page(page)
     except (EmptyPage, InvalidPage):
         res = paginator.page(paginator.num_pages)
-    res.object_list=[{'url': obj.url,
-                      'title': obj.title,
-                      'created': obj.created,
-                      'private': obj.private,
-                      'notes': unescape(obj.notes),
-                      'tags': [unicode(x) for x in obj.tags.all()]
-                      } for obj in res.object_list]
+    jsonFormat=request.GET.get('format','') == 'json'
     if res:
-        return render_to_response('list.html', { 'items': res, 'limit': limit, 'total': total }, context_instance=RequestContext(request) )
+        if jsonFormat:
+            res=[{'url': unicode(obj.url),
+                  'title': unicode(obj.title),
+                  'created': tuple(obj.created.timetuple()) if jsonFormat else obj.created,
+                  'private': obj.private,
+                  'notes': unicode(unescape(obj.notes)),
+                  'tags': [unicode(x) for x in obj.tags.all()]
+                  } for obj in res.object_list]
+            return HttpResponse(json.dumps(res),mimetype="application/json")
+        if request.GET.get('format','') == 'atom':
+            tpl='atom.xml'
+        else:
+            tpl='list.html'
+        res.object_list=[{'url': obj.url,
+                          'title': obj.title,
+                          'created': tuple(obj.created.timetuple()) if jsonFormat else obj.created,
+                          'private': obj.private,
+                          'notes': unescape(obj.notes),
+                          'tags': [unicode(x) for x in obj.tags.all()]
+                          } for obj in res.object_list]
+        return render_to_response(tpl, { 'items': res,
+                                         'limit': limit,
+                                         'total': total,
+                                         'baseurl': baseurl,
+                                         'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
+                                         'tagcloud': json.dumps(tagcloud),
+                                         'path': request.path}, context_instance=RequestContext(request) )
     else:
         return HttpResponse("no result")
 

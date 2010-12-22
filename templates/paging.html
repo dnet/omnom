@@ -1,0 +1,22 @@
+{%if items.has_other_pages %}
+<span class="pagination">
+  <span class="step-links">
+    {% if items.has_previous %}
+    <a href="?page={{ items.previous_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">previous</a>
+    {% endif %}
+    <span class="current">
+      Page {{ items.number }} of {{ items.paginator.num_pages }}.
+    </span>
+  <span class="limits">
+    {%if limit == 10 %}10{%else%}(<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=10">10</a>{%endif%}
+    {%if limit == 25 %}25{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=25">25</a>{%endif%}
+    {%if limit == 50 %}50{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=50">50</a>{%endif%}
+    {%if limit == 100 %}100{%else%}<a href="?{%if items.number != 1%}page={{items.number}}&{%endif%}limit=100">100</a>{%endif%})
+  </span>
+
+    {% if items.has_next %}
+    <a href="?page={{ items.next_page_number }}{%if limit != 25 %}&limit={{limit}}{%endif%}">next</a>
+    {% endif %}
+  </span>
+</span>
+{%endif%}
