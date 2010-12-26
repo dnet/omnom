@@ -5,7 +5,9 @@ from django.core.exceptions import ObjectDoesNotExist
 # Create your models here.
 
 class Tag(models.Model):
-    name = models.CharField(max_length=200, db_index=True) # yes longer tags than tweets! ;)
+    name = models.CharField(max_length=200,
+                            unique=True,
+                            db_index=True) # yes longer tags than tweets! ;)
 
     def __unicode__(self):
         return self.name

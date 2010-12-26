@@ -26,7 +26,7 @@
 {% if user.is_authenticated %}
 {<a href="{%root_url%}">All</a>|
 <a href="{%root_url%}/u/{{user}}">My</a>} bookmarks
-<<a href="{%root_url%}/load/">Import</a>>
+<<a href="{%root_url%}/import/">Import</a>>
 {%endif%}
 <a href="javascript:var selection = '';if (window.getSelection) {selection = window.getSelection();} else if (document.getSelection) {selection = document.getSelection();} else if (document.selection) {selection = document.selection.createRange().text;};x=document;a=encodeURIComponent(x.location.href);t=encodeURIComponent(x.title);d=encodeURIComponent(selection);open('{%root_url%}/add/?popup=1&amp;url='+a+'&amp;title='+t+'&amp;notes='+d,'tagger','modal=1,status=0,scrollbars=1,toolbar=0,resizable=1,width=730,height=465,left='+(screen.width-730)/2+',top='+(screen.height-425)/2);void 0;">Bookmarklet</a>
 {% block content %}

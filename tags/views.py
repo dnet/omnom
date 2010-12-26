@@ -44,7 +44,8 @@ def list(request,tags=[],user=None):
         tags=urllib.unquote_plus(tags).split(' ')
         for tag in tags:
             if not tag: continue
-            t=Tag.objects.get(name=tag)
+            try: t=Tag.objects.get(name=tag)
+            except ObjectDoesNotExist: continue
             query=query.filter(tags=t)
     query=query.order_by('created').reverse()
     tagcloud=[]
@@ -96,30 +97,55 @@ def list(request,tags=[],user=None):
                                          'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
                                          'tagcloud': json.dumps(tagcloud),
                                          'baseurl': baseurl,
-                                         'path': request.path}, context_instance=RequestContext(request) )
+                                         'path': request.path},
+                                 context_instance=RequestContext(request) )
     else:
         return HttpResponse("no result")
 
-def add(request):
+def add(request,url=None):
     form = AddBookmarkForm(request.GET)
-    if not form.is_valid():
-        return render_to_response('add.html', { 'form': form, })
-
-    if form.cleaned_data['popup']:
-        suggestedTags=[]
+    try: user=User.objects.get(username=request.user)
+    except ObjectDoesNotExist:
+        return HttpResponseRedirect("/accounts/login")
+    if not form.is_valid() or form.cleaned_data['popup']:
+        if url: # try to edit an existing bookmark?
+            try:
+                url=URI.objects.get(url=url)
+                obj=Bookmark.objects.get(url=url, user=user)
+            except ObjectDoesNotExist: obj=None
+            if obj: # yes, edit an existing bookmark
+                data={ 'url' : url,
+                       'title' : obj.title,
+                       'tags' : ', '.join([unicode(x) for x in obj.tags.all()]),
+                       'notes' : obj.notes,
+                       'private' : obj.private,
+                       'popup' : True }
+                form = AddBookmarkForm(data)
         try:
             suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
-        except:
-            pass
-        return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) })
-    else:
-        try:
-            url=URI.objects.get(url=form.cleaned_data['url'])
-        except ObjectDoesNotExist:
-            url=URI(url=form.cleaned_data['url'])
-            url.save()
-        uri=Bookmark(url=url,
+        except: suggestedTags=set()
+        return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) }, context_instance=RequestContext(request))
+
+    # ok we have some valid form. let's save it.
+    try:
+        url=URI.objects.get(url=form.cleaned_data['url'])
+    except ObjectDoesNotExist:
+        url=URI(url=form.cleaned_data['url'])
+        url.save()
+    try:
+        obj=Bookmark.objects.get(url=url, user=user)
+    except ObjectDoesNotExist:
+        obj=None
+
+    if obj: # edit
+        obj.updated=datetime.today()
+        obj.private=form.cleaned_data['private']
+        obj.title=form.cleaned_data['title']
+        obj.notes=form.cleaned_data['notes']
+        obj.tags.all().delete()
+    else: # create
+        obj=Bookmark(url=url,
                      user=request.user,
                      created=datetime.today(),
                      updated=datetime.today(),
@@ -127,20 +153,17 @@ def add(request):
                      title=form.cleaned_data['title'],
                      notes=form.cleaned_data['notes'],
                      )
-        uri.save()
-        uri.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
-    return HttpResponse("ok")
+    obj.save()
+    obj.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
+    return HttpResponseRedirect("/u/%s/" % request.user)
 
 def delete(request,url):
-    user=User.objects.get(username=request.user)
-    url=URI.objects.get(url=url)
-    obj=Bookmark.objects.get(url=url, user=request.user).delete()
-    return HttpResponseRedirect('/u/%s/' % request.user)
-
-def edit(request,url):
-    user=User.objects.get(username=request.user)
-    url=URI.objects.get(url=url)
-    obj=Bookmark.objects.get(url=url, user=request.user)
+    try:
+        user=User.objects.get(username=request.user)
+        url=URI.objects.get(url=url)
+        obj=Bookmark.objects.get(url=url, user=request.user).delete()
+    except ObjectDoesNotExist:
+        print "meh delete not working. user, url or obj not existing"
     return HttpResponseRedirect('/u/%s/' % request.user)
 
 TAGCACHE={}
