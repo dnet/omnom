@@ -131,8 +131,17 @@ def add(request):
         uri.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
     return HttpResponse("ok")
 
-def delete(request):
-    return HttpResponseRedirect(request.path)
+def delete(request,url):
+    user=User.objects.get(username=request.user)
+    url=URI.objects.get(url=url)
+    obj=Bookmark.objects.get(url=url, user=request.user).delete()
+    return HttpResponseRedirect('/u/%s/' % request.user)
+
+def edit(request,url):
+    user=User.objects.get(username=request.user)
+    url=URI.objects.get(url=url)
+    obj=Bookmark.objects.get(url=url, user=request.user)
+    return HttpResponseRedirect('/u/%s/' % request.user)
 
 TAGCACHE={}
 def getTag(name):
