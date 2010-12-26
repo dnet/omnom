@@ -60,7 +60,7 @@
     </span>
     ... on {{item.created}}
   </div>
-  {%if owner %}
+  {%if user == item.user %}
   <a href="{%root_url%}/edit/{{item.url}}">Edit</a> | <a href="{%root_url%}/del/{{item.url}}">Delete</a>
   {%endif%}
 </div>

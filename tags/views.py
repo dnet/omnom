@@ -35,12 +35,9 @@ def list(request,tags=[],user=None):
     else:
         path='/'.join(plist[:-1])
 
-    owner=False
     query=Bookmark.objects
     if user and request.user!=user:
         query=query.filter(private=0)
-    else:
-        owner=True
     if user:
         query=query.filter(user=user)
     if tags:
@@ -71,19 +68,24 @@ def list(request,tags=[],user=None):
         if jsonFormat:
             res=[{'url': unicode(obj.url),
                   'title': unicode(obj.title),
-                  'created': tuple(obj.created.timetuple()) if jsonFormat else obj.created,
+                  'created': tuple(obj.created.timetuple()),
+                  'updated': tuple(obj.updated.timetuple()),
                   'private': obj.private,
                   'notes': unicode(unescape(obj.notes)),
                   'tags': [unicode(x) for x in obj.tags.all()]
                   } for obj in res.object_list]
             return HttpResponse(json.dumps(res),mimetype="application/json")
+
         if request.GET.get('format','') == 'atom':
             tpl='atom.xml'
         else:
             tpl='list.html'
+
         res.object_list=[{'url': obj.url,
+                          'user': obj.user,
                           'title': obj.title,
-                          'created': tuple(obj.created.timetuple()) if jsonFormat else obj.created,
+                          'created': obj.created,
+                          'updated': obj.updated,
                           'private': obj.private,
                           'notes': unescape(obj.notes),
                           'tags': [unicode(x) for x in obj.tags.all()]
@@ -91,7 +93,6 @@ def list(request,tags=[],user=None):
         return render_to_response(tpl, { 'items': res,
                                          'limit': limit,
                                          'total': total,
-                                         'owner': owner,
                                          'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
                                          'tagcloud': json.dumps(tagcloud),
                                          'baseurl': baseurl,
@@ -105,11 +106,14 @@ def add(request):
         return render_to_response('add.html', { 'form': form, })
 
     if form.cleaned_data['popup']:
-        suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
-        suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
+        suggestedTags=[]
+        try:
+            suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
+            suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
+        except:
+            pass
         return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) })
     else:
-        # TODO implement edit!
         try:
             url=URI.objects.get(url=form.cleaned_data['url'])
         except ObjectDoesNotExist:
@@ -118,6 +122,7 @@ def add(request):
         uri=Bookmark(url=url,
                      user=request.user,
                      created=datetime.today(),
+                     updated=datetime.today(),
                      private=form.cleaned_data['private'],
                      title=form.cleaned_data['title'],
                      notes=form.cleaned_data['notes'],
