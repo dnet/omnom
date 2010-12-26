@@ -48,6 +48,7 @@ def list(request,tags=[],user=None):
             except ObjectDoesNotExist: continue
             query=query.filter(tags=t)
     query=query.order_by('created').reverse()
+
     tagcloud=[]
     if (tags or user) and request.GET.get('format','') == '':
         timetags={}
@@ -64,43 +65,40 @@ def list(request,tags=[],user=None):
         res = paginator.page(page)
     except (EmptyPage, InvalidPage):
         res = paginator.page(paginator.num_pages)
-    jsonFormat=request.GET.get('format','') == 'json'
-    if res:
-        if jsonFormat:
-            res=[{'url': unicode(obj.url),
-                  'title': unicode(obj.title),
-                  'created': tuple(obj.created.timetuple()),
-                  'updated': tuple(obj.updated.timetuple()),
-                  'private': obj.private,
-                  'notes': unicode(unescape(obj.notes)),
-                  'tags': [unicode(x) for x in obj.tags.all()]
-                  } for obj in res.object_list]
-            return HttpResponse(json.dumps(res),mimetype="application/json")
 
-        if request.GET.get('format','') == 'atom':
-            tpl='atom.xml'
-        else:
-            tpl='list.html'
+    if request.GET.get('format','') == 'json':
+        res=[{'url': unicode(obj.url),
+              'title': unicode(obj.title),
+              'created': tuple(obj.created.timetuple()),
+              'updated': tuple(obj.updated.timetuple()),
+              'private': obj.private,
+              'notes': unicode(unescape(obj.notes)),
+              'tags': [unicode(x) for x in obj.tags.all()]
+              } for obj in res.object_list]
+        return HttpResponse(json.dumps(res),mimetype="application/json")
 
-        res.object_list=[{'url': obj.url,
-                          'user': obj.user,
-                          'title': obj.title,
-                          'created': obj.created,
-                          'updated': obj.updated,
-                          'private': obj.private,
-                          'notes': unescape(obj.notes),
-                          'tags': [unicode(x) for x in obj.tags.all()]
-                          } for obj in res.object_list]
-        return render_to_response(tpl, { 'items': res,
-                                         'limit': limit,
-                                         'total': total,
-                                         'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
-                                         'tagcloud': json.dumps(tagcloud),
-                                         'baseurl': baseurl,
-                                         'path': request.path},
-                                 context_instance=RequestContext(request) )
+    if request.GET.get('format','') == 'atom':
+        tpl='atom.xml'
     else:
-        return HttpResponse("no result")
+        tpl='list.html'
+
+    res.object_list=[{'url': obj.url,
+                      'user': obj.user,
+                      'title': obj.title,
+                      'created': obj.created,
+                      'updated': obj.updated,
+                      'private': obj.private,
+                      'notes': unescape(obj.notes),
+                      'tags': [unicode(x) for x in obj.tags.all()]
+                      } for obj in res.object_list]
+    return render_to_response(tpl, { 'items': res,
+                                     'limit': limit,
+                                     'total': total,
+                                     'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
+                                     'tagcloud': json.dumps(tagcloud),
+                                     'baseurl': baseurl,
+                                     'path': request.path},
+                             context_instance=RequestContext(request) )
 
 def add(request,url=None):
     form = AddBookmarkForm(request.GET)
