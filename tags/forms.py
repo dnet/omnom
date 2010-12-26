@@ -19,3 +19,6 @@ class AddBookmarkForm(forms.Form):
     notes = forms.CharField(required=False, widget=AdvancedEditor(), label="Notes")
     private = forms.BooleanField(required=False, label="Private")
     popup = forms.BooleanField(required=False)
+
+class ImportDeliciousForm(forms.Form):
+    exported = forms.FileField(required=True, label="Upload Delicious export")

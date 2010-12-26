@@ -1,5 +1,5 @@
 from models import Bookmark, Tag, URI
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from django.core.exceptions import ObjectDoesNotExist
@@ -9,11 +9,11 @@ from django.contrib.auth.models import User
 from django.template import RequestContext
 from tagger import conf
 from tagger.utils import unescape
-from tagger.tags.forms import AddBookmarkForm
+from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup
-import urllib2, re, urllib, json
 from datetime import datetime
+import urllib2, re, urllib, json
 
 #TODO split bookmarking and url tagging
 
@@ -35,9 +35,12 @@ def list(request,tags=[],user=None):
     else:
         path='/'.join(plist[:-1])
 
+    owner=False
     query=Bookmark.objects
     if user and request.user!=user:
         query=query.filter(private=0)
+    else:
+        owner=True
     if user:
         query=query.filter(user=user)
     if tags:
@@ -88,9 +91,10 @@ def list(request,tags=[],user=None):
         return render_to_response(tpl, { 'items': res,
                                          'limit': limit,
                                          'total': total,
-                                         'baseurl': baseurl,
+                                         'owner': owner,
                                          'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
                                          'tagcloud': json.dumps(tagcloud),
+                                         'baseurl': baseurl,
                                          'path': request.path}, context_instance=RequestContext(request) )
     else:
         return HttpResponse("no result")
@@ -121,6 +125,48 @@ def add(request):
         uri.save()
         uri.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
     return HttpResponse("ok")
+
+def delete(request):
+    return HttpResponseRedirect(request.path)
+
+TAGCACHE={}
+def getTag(name):
+    if not name in TAGCACHE:
+        TAGCACHE[name]=Tag(name=name)
+        TAGCACHE[name].save()
+    return TAGCACHE[name]
+
+def load(request):
+    if request.method == 'POST' and request.user.is_authenticated():
+        form = ImportDeliciousForm(request.POST,request.FILES)
+        if form.is_valid():
+            html=unescape(request.FILES['exported'].read().decode('utf8'))
+            soup=BeautifulSoup(html)
+            for item in soup.findAll('dt'):
+                desc=''
+                next=item.findNextSiblings()
+                if next:
+                    next=next[0]
+                    if 'name' in dir(next) and next.name=='dd':
+                        desc=u''.join([unicode(x) for x in next.contents])
+                try:
+                    url=URI.objects.get(url=item.a['href'])
+                except ObjectDoesNotExist:
+                    url=URI(url=item.a['href'])
+                    url.save()
+                uri=Bookmark(url=url,
+                             user=request.user,
+                             created=datetime.fromtimestamp(float(item.a['add_date'])),
+                             updated=datetime.now(),
+                             private=item.a['private']=='1',
+                             title=unicode(item.a.string),
+                             notes=desc)
+                uri.save()
+                uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
+            return HttpResponseRedirect('/u/%s/' % request.user)
+    else:
+        form = ImportDeliciousForm()
+    return render_to_response('import.html', { 'form': form, }, context_instance=RequestContext(request) )
 
 openCalaisParams=''.join(
     ['<c:params xmlns:c="http://s.opencalais.com/1/pred/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',

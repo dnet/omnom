@@ -1,0 +1,9 @@
+{% extends "base.html" %}{%load tagger%}
+{%block content%}
+<form enctype="multipart/form-data" method="post" action="/import/">
+  {{form}}
+  {% csrf_token %}
+  <br />
+  <input type="submit" value="Import">
+</form>
+{%endblock%}

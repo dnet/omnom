@@ -11,7 +11,8 @@ urlpatterns = patterns('',
     (r'^accounts/', include('registration.urls')),
     (r'^tags/', tags.tags),
     (r'^add/', tags.add),
-    #(r'^import/$', tags.import),
+    (r'^del/', tags.delete),
+    (r'^import/', tags.load),
     (r'^$', tags.list),                                       # list all (except private)
     (r'^t/(?P<tags>.+)?', tags.list),                         # ... filtered by tags
     (r'^u/(?P<user>.+)/$', tags.list),                        # list only users items

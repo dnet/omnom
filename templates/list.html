@@ -60,7 +60,9 @@
     </span>
     ... on {{item.created}}
   </div>
-  <a href="">Edit</a> | <a href="">Delete</a>
+  {%if owner %}
+  <a href="{%root_url%}/edit/{{item.url}}">Edit</a> | <a href="{%root_url%}/del/{{item.url}}">Delete</a>
+  {%endif%}
 </div>
 {%endfor%}
 {% include "paging.html" %}

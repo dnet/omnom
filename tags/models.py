@@ -29,6 +29,7 @@ class Bookmark(models.Model):
     user = models.ForeignKey(User,db_index=True)
     url = models.ForeignKey(URI,db_index=True)
     created = models.DateTimeField(db_index=True)
+    updated = models.DateTimeField()
     private = models.BooleanField()
     title = models.TextField()
     notes = models.TextField()
