@@ -174,10 +174,12 @@ def getTag(name):
     return TAGCACHE[name]
 
 def load(request):
-    if request.method == 'POST' and request.user.is_authenticated():
+    if not request.user.is_authenticated():
+        return HttpResponseRedirect("/accounts/login")
+    if request.method == 'POST':
         form = ImportDeliciousForm(request.POST,request.FILES)
         if form.is_valid():
-            html=unescape(request.FILES['exported'].read().decode('utf8'))
+            html=request.FILES['exported'].read().decode('utf8')
             soup=BeautifulSoup(html)
             for item in soup.findAll('dt'):
                 desc=''
@@ -185,7 +187,7 @@ def load(request):
                 if next:
                     next=next[0]
                     if 'name' in dir(next) and next.name=='dd':
-                        desc=u''.join([unicode(x) for x in next.contents])
+                        desc=unescape(u''.join([unicode(x) for x in next.contents]))
                 try:
                     url=URI.objects.get(url=item.a['href'])
                 except ObjectDoesNotExist:
@@ -196,7 +198,7 @@ def load(request):
                              created=datetime.fromtimestamp(float(item.a['add_date'])),
                              updated=datetime.now(),
                              private=item.a['private']=='1',
-                             title=unicode(item.a.string),
+                             title=unescape(unicode(item.a.string)),
                              notes=desc)
                 uri.save()
                 uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
