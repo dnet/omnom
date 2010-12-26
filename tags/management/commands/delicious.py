@@ -49,13 +49,13 @@ class Command(BaseCommand):
         f=open(args[1])
         raw=f.readlines()
         f.close()
-        html=unescape(str(tidy.parseString(' '.join(raw), **{'output_xhtml' : 1,
+        html=str(tidy.parseString(' '.join(raw), **{'output_xhtml' : 1,
                                                              'add_xml_decl' : 0,
                                                              'indent' : 0,
                                                              'tidy_mark' : 0,
                                                              'doctype' : "strict",
                                                              'char-encoding' : "utf8",
-                                                             'wrap' : 0})).decode('utf8'))
+                                                             'wrap' : 0})).decode('utf8')
         soup=BeautifulSoup(html)
         for item in soup.findAll('dt'):
             desc=''
@@ -72,9 +72,10 @@ class Command(BaseCommand):
             uri=Bookmark(url=url,
                          user=user,
                          created=datetime.fromtimestamp(float(item.a['add_date'])),
+                         updated=datetime.now(),
                          private=item.a['private']=='1',
-                         title=unicode(item.a.string),
-                         notes=desc)
+                         title=unicode(unescape(item.a.string)),
+                         notes=unescape(desc))
             uri.save()
             uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
             #print uri,uri.created,uri.tags.all()

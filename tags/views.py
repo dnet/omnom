@@ -47,6 +47,7 @@ def list(request,tags=[],user=None):
             try: t=Tag.objects.get(name=tag)
             except ObjectDoesNotExist: continue
             query=query.filter(tags=t)
+
     query=query.order_by('created').reverse()
 
     tagcloud=[]
