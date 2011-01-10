@@ -115,6 +115,6 @@ ACCOUNT_ACTIVATION_DAYS = 7
 LOGIN_REDIRECT_URL = '/'
 
 try:
-    from lenx.local_settings import *
+    from local_settings import *
 except:
     pass
