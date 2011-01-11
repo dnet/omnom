@@ -6,6 +6,6 @@ flickr={ 'key': '',
 openCalaisAPIKey=''
 
 try:
-    from conf-local import *
+    from conf_local import *
 except:
     pass
