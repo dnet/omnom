@@ -1,40 +1,35 @@
-from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django_mongokit import connection
+from django_mongokit.document import DjangoDocument
+import datetime
 
-# Create your models here.
+class Bookmark(DjangoDocument):
+    class Meta:
+        verbose_name_plural = "Bookmarks"
 
-class Tag(models.Model):
-    name = models.CharField(max_length=200,
-                            unique=True,
-                            db_index=True) # yes longer tags than tweets! ;)
+    collection_name = 'bookmarks'
+    structure = {
+        'tags': [unicode],
+        'user': unicode,
+        'url': unicode,
+        'created': datetime.datetime,
+        'updated': datetime.datetime,
+        'private': bool,
+        'title': unicode,
+        'notes': unicode,
+        }
 
-    def __unicode__(self):
-        return self.name
+    default_values = {
+        'created': datetime.datetime.utcnow,
+        }
 
-    @staticmethod
-    def get(name):
-        try:
-            t=Tag.objects.get(name=name)
-        except ObjectDoesNotExist:
-            t=Tag(name=name)
-            t.save()
-        return t
+    use_dot_notation = True
 
-class URI(models.Model):
-    url = models.TextField(unique=True,db_index=True)
-    def __unicode__(self):
-        return self.url
-
-class Bookmark(models.Model):
-    tags = models.ManyToManyField(Tag)
-    user = models.ForeignKey(User,db_index=True)
-    url = models.ForeignKey(URI,db_index=True)
-    created = models.DateTimeField(db_index=True)
-    updated = models.DateTimeField()
-    private = models.BooleanField()
-    title = models.TextField()
-    notes = models.TextField()
-
+    indexes = [
+        {'fields': ['user','url','created']},
+        ]
     def __unicode__(self):
         return self.title
+
+connection.register([Bookmark])

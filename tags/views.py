@@ -1,9 +1,8 @@
-from models import Bookmark, Tag, URI
+from models import Bookmark
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template import RequestContext
@@ -13,7 +12,11 @@ from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup
 from datetime import datetime
-import urllib2, re, urllib, json
+import urllib2, re, urllib, json, pymongo
+
+from django_mongokit import get_database
+database = get_database()
+collection = database['bookmarks']
 
 #TODO split bookmarking and url tagging
 
@@ -35,33 +38,33 @@ def list(request,tags=[],user=None):
     else:
         path='/'.join(plist[:-1])
 
-    query=Bookmark.objects
+    db = get_database()[Bookmark.collection_name]
+    query={}
     if user and request.user!=user:
-        query=query.filter(private=0)
+        query['private']=0
     if user:
-        query=query.filter(user=user)
+        query['user']=unicode(user)
     if tags:
         tags=urllib.unquote_plus(tags).split(' ')
-        for tag in tags:
-            if not tag: continue
-            try: t=Tag.objects.get(name=tag)
-            except ObjectDoesNotExist: continue
-            query=query.filter(tags=t)
+        query['tags']={'$all': tags}
 
-    query=query.order_by('created').reverse()
+    order=[('created', pymongo.DESCENDING)]
+    res=db.find(query)
 
     tagcloud=[]
     if (tags or user) and request.GET.get('format','') == '':
         timetags={}
-        for item in query:
-            d=item.created.strftime("%Y-%m-%d")
+        for item in res:
+            d=item['created'].strftime("%Y-%m-%d")
             timetags[d]=timetags.get(d,{})
-            for t in item.tags.all():
-                if t.name in tags: continue
-                timetags[d][t.name]=timetags[d].get(t.name,0)+1
+            for t in item['tags']:
+                if t in tags: continue
+                timetags[d][t]=timetags[d].get(t,0)+1
         tagcloud=[(k, sorted(v.items())) for k, v in sorted(timetags.items())]
-    total=query.count()
-    paginator = Paginator(query, limit)
+
+    res=db.find(query,sort=order)
+    total=res.count()
+    paginator = Paginator(res, limit)
     try:
         res = paginator.page(page)
     except (EmptyPage, InvalidPage):
@@ -83,14 +86,14 @@ def list(request,tags=[],user=None):
     else:
         tpl='list.html'
 
-    res.object_list=[{'url': obj.url,
-                      'user': obj.user,
-                      'title': obj.title,
-                      'created': obj.created,
-                      'updated': obj.updated,
-                      'private': obj.private,
-                      'notes': unescape(obj.notes),
-                      'tags': [unicode(x) for x in obj.tags.all()]
+    res.object_list=[{'url': obj['url'],
+                      'user': obj['user'],
+                      'title': obj['title'],
+                      'created': obj['created'],
+                      'updated': obj['updated'],
+                      'private': obj['private'],
+                      'notes': unescape(obj['notes']),
+                      'tags': [unicode(x) for x in obj['tags']]
                       } for obj in res.object_list]
     return render_to_response(tpl, { 'items': res,
                                      'limit': limit,
@@ -106,71 +109,67 @@ def add(request,url=None):
     try: user=User.objects.get(username=request.user)
     except ObjectDoesNotExist:
         return HttpResponseRedirect("/accounts/login")
+
+    suggestedTags=set()
+    db = get_database()[Bookmark.collection_name]
     if not form.is_valid() or form.cleaned_data['popup']:
         if url: # try to edit an existing bookmark?
             try:
-                url=URI.objects.get(url=url)
-                obj=Bookmark.objects.get(url=url, user=user)
+                obj=db.find_one({'url':url, 'user': unicode(user)})
             except ObjectDoesNotExist: obj=None
             if obj: # yes, edit an existing bookmark
                 data={ 'url' : url,
-                       'title' : obj.title,
-                       'tags' : ', '.join([unicode(x) for x in obj.tags.all()]),
-                       'notes' : obj.notes,
-                       'private' : obj.private,
+                       'title' : obj['title'],
+                       'tags' : ' '.join([unicode(x) for x in obj['tags']]),
+                       'notes' : obj['notes'],
+                       'private' : obj['private'],
                        'popup' : True }
+                try:
+                    suggestedTags=set(suggestTags(data['url']).keys())
+                    suggestedTags.update(getCalaisTags(data['notes']))
+                except: suggestedTags=set()
                 form = AddBookmarkForm(data)
         try:
             suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
-        except: suggestedTags=set()
+        except: pass
         return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) }, context_instance=RequestContext(request))
 
     # ok we have some valid form. let's save it.
+    url=form.cleaned_data['url']
     try:
-        url=URI.objects.get(url=form.cleaned_data['url'])
-    except ObjectDoesNotExist:
-        url=URI(url=form.cleaned_data['url'])
-        url.save()
-    try:
-        obj=Bookmark.objects.get(url=url, user=user)
+        obj=db.one({'url': url, 'user': unicode(user)})
     except ObjectDoesNotExist:
         obj=None
 
     if obj: # edit
-        obj.updated=datetime.today()
-        obj.private=form.cleaned_data['private']
-        obj.title=form.cleaned_data['title']
-        obj.notes=form.cleaned_data['notes']
-        obj.tags.all().delete()
+        obj=db.Bookmark(obj)
+        obj['updated']=datetime.today()
+        obj['private']=form.cleaned_data['private']
+        obj['title']=form.cleaned_data['title']
+        obj['notes']=form.cleaned_data['notes']
+        obj['tags']=form.cleaned_data['tags'].split(" ")
+        obj.save()
     else: # create
-        obj=Bookmark(url=url,
-                     user=request.user,
-                     created=datetime.today(),
-                     updated=datetime.today(),
-                     private=form.cleaned_data['private'],
-                     title=form.cleaned_data['title'],
-                     notes=form.cleaned_data['notes'],
-                     )
-    obj.save()
-    obj.tags.add(*[Tag.get(tag) for tag in form.cleaned_data['tags'].split(',')])
+        obj=db.Bookmark({'url': url,
+                         'user': unicode(request.user),
+                         'created': datetime.today(),
+                         'updated': datetime.today(),
+                         'private': form.cleaned_data['private'],
+                         'title': form.cleaned_data['title'],
+                         'notes': form.cleaned_data['notes'],
+                         'tags': form.cleaned_data['tags'].split(' '),
+                        }).save()
     return HttpResponseRedirect("/u/%s/" % request.user)
 
 def delete(request,url):
     try:
         user=User.objects.get(username=request.user)
-        url=URI.objects.get(url=url)
-        obj=Bookmark.objects.get(url=url, user=request.user).delete()
+        db = get_database()[Bookmark.collection_name]
+        obj=db.remove({'url':url, 'user': unicode(request.user)})
     except ObjectDoesNotExist:
         print "meh delete not working. user, url or obj not existing"
     return HttpResponseRedirect('/u/%s/' % request.user)
-
-TAGCACHE={}
-def getTag(name):
-    if not name in TAGCACHE:
-        TAGCACHE[name]=Tag(name=name)
-        TAGCACHE[name].save()
-    return TAGCACHE[name]
 
 def load(request):
     if not request.user.is_authenticated():
@@ -178,6 +177,7 @@ def load(request):
     if request.method == 'POST':
         form = ImportDeliciousForm(request.POST,request.FILES)
         if form.is_valid():
+            db = get_database()[Bookmark.collection_name]
             html=request.FILES['exported'].read().decode('utf8')
             soup=BeautifulSoup(html)
             for item in soup.findAll('dt'):
@@ -187,20 +187,14 @@ def load(request):
                     next=next[0]
                     if 'name' in dir(next) and next.name=='dd':
                         desc=unescape(u''.join([unicode(x) for x in next.contents]))
-                try:
-                    url=URI.objects.get(url=item.a['href'])
-                except ObjectDoesNotExist:
-                    url=URI(url=item.a['href'])
-                    url.save()
-                uri=Bookmark(url=url,
-                             user=request.user,
-                             created=datetime.fromtimestamp(float(item.a['add_date'])),
-                             updated=datetime.now(),
-                             private=item.a['private']=='1',
-                             title=unescape(unicode(item.a.string)),
-                             notes=desc)
-                uri.save()
-                uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
+                db.Bookmark({'url': item.a['href'],
+                             'tags': [tag for tag in item.a['tags'].split(',')],
+                             'user': unicode(request.user),
+                             'created': datetime.fromtimestamp(float(item.a['add_date'])),
+                             'updated': datetime.now(),
+                             'private': item.a['private']=='1',
+                             'title': unescape(unicode(item.a.string)),
+                             'notes': unicode(desc)}).save()
             return HttpResponseRedirect('/u/%s/' % request.user)
     else:
         form = ImportDeliciousForm()
@@ -239,15 +233,6 @@ def suggestTags(uri):
         else:
             t[tag]="%s,%s" % (t[tag],type)
     return t
-
-def localTags(uri):
-    obj=URI.objects.filter(url=uri)
-    if len(obj)>1:
-        return HttpResponse("more than 1 result")
-    if len(obj):
-        return [(unicode(x),'local') for x in obj[0].tags.all()]
-    else:
-        return []
 
 deliciousurl='https://api.del.icio.us/v1/posts/suggest?url='
 def deliciousSuggested(uri):
@@ -302,6 +287,6 @@ def tags(request):
             return HttpResponse("no result")
     return HttpResponse("no uri?")
 
-#plugins=(deliciousSuggested, traverse, localTags, flickrTags, slashdotTags)
-plugins=(deliciousSuggested, localTags, flickrTags, slashdotTags)
+#plugins=(deliciousSuggested, traverse, flickrTags, slashdotTags)
+plugins=(deliciousSuggested, flickrTags, slashdotTags)
 
