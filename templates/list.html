@@ -23,6 +23,10 @@
    {%endif%}
 {%endblock%}
 
+{%block rss%}
+    <link rel="alternate" type="application/atom+xml" title="Atom feed" href="{{baseurl}}?format=atom">
+{%endblock%}
+
 {%block styles%}
    {%if tagcloud%}
     <link rel="stylesheet" type="text/css" media="all" href="{% media_url %}/css/tagcloud.css" />

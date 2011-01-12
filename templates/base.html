@@ -7,6 +7,9 @@
     <meta name="description" content="" />
     <meta name="keywords" content="" />
     <title>{% block title %}[!] tagger {% endblock %}</title>
+    <meta name="robots" content="noarchive,noindex,nofollow">
+    {% block rss %}
+    {% endblock %}
     {% block scripts %}
     {% endblock %}
     <link rel="stylesheet" type="text/css" media="all" href="{% media_url %}/css/style.css" />
