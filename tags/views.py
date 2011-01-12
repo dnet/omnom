@@ -71,13 +71,13 @@ def list(request,tags=[],user=None):
         res = paginator.page(paginator.num_pages)
 
     if request.GET.get('format','') == 'json':
-        res=[{'url': unicode(obj.url),
-              'title': unicode(obj.title),
-              'created': tuple(obj.created.timetuple()),
-              'updated': tuple(obj.updated.timetuple()),
-              'private': obj.private,
-              'notes': unicode(unescape(obj.notes)),
-              'tags': [unicode(x) for x in obj.tags.all()]
+        res=[{'url': unicode(obj['url']),
+              'title': unicode(obj['title']),
+              'created': tuple(obj['created'].timetuple()),
+              'updated': tuple(obj['updated'].timetuple()),
+              'private': obj['private'],
+              'notes': unicode(unescape(obj['notes'])),
+              'tags': obj['tags']
               } for obj in res.object_list]
         return HttpResponse(json.dumps(res),mimetype="application/json")
 
