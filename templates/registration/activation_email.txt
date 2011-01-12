@@ -5,7 +5,7 @@
 {{activation_key}}
 
 {% trans "Please click on this link to activate your account" %}
-http://{%root_url%}{% url registration_activate activation_key %}
+{%root_url%}{% url registration_activate activation_key %}
 
 {% trans "This link will expire in:" %} {{expiration_days}} {% trans "days." %}
 
