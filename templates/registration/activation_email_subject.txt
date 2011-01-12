@@ -1,1 +1,1 @@
-Savane account registration
+{%load tagger%}{%root_url%} account registration
