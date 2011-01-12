@@ -55,7 +55,7 @@
   <div class="meta">
     <span class="tagcontainer">
     {%for tag in item.tags%}
-        {%if root_url == baseurl %}
+        {%if baseurl == '/' %}
         <a rel="tag" href="/t/{{tag}}">{{tag}}</a>
         {%else%}
         <a rel="tag" href="{{baseurl}}{%if tags%}+{%endif%}{{tag}}">{{tag}}</a>
