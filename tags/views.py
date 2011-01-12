@@ -10,8 +10,9 @@ from tagger import conf
 from tagger.utils import unescape
 from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
-from BeautifulSoup import BeautifulSoup
+from BeautifulSoup import BeautifulSoup, Comment
 from datetime import datetime
+from urlparse import urljoin
 import urllib2, re, urllib, json, pymongo
 
 from django_mongokit import get_database
@@ -20,7 +21,32 @@ collection = database['bookmarks']
 
 #TODO split bookmarking and url tagging
 
-def list(request,tags=[],user=None):
+def sanitizeHtml(value, base_url=None):
+    rjs = r'[\s]*(&#x.{1,7})?'.join(list('javascript:'))
+    rvb = r'[\s]*(&#x.{1,7})?'.join(list('vbscript:'))
+    re_scripts = re.compile('(%s)|(%s)' % (rjs, rvb), re.IGNORECASE)
+    validTags = 'p i strong b u a h1 h2 h3 pre br img'.split()
+    validAttrs = 'href src width height'.split()
+    urlAttrs = 'href src'.split() # Attributes which should have a URL
+    soup = BeautifulSoup(value)
+    for comment in soup.findAll(text=lambda text: isinstance(text, Comment)):
+        # Get rid of comments
+        comment.extract()
+    for tag in soup.findAll(True):
+        if tag.name not in validTags:
+            tag.hidden = True
+        attrs = tag.attrs
+        tag.attrs = []
+        for attr, val in attrs:
+            if attr in validAttrs:
+                val = re_scripts.sub('', val) # Remove scripts (vbs & js)
+                if attr in urlAttrs:
+                    val = urljoin(base_url, val) # Calculate the absolute url
+                tag.attrs.append((attr, val))
+
+    return soup.renderContents().decode('utf8')
+
+def show(request,tags=[],user=None):
     if user:
         try: user = User.objects.get(username=user)
         except ObjectDoesNotExist: return HttpResponse("no access")
@@ -158,9 +184,9 @@ def add(request,url=None):
         obj=db.Bookmark(obj)
         obj['updated']=datetime.today()
         obj['private']=form.cleaned_data['private']
-        obj['title']=form.cleaned_data['title']
-        obj['notes']=form.cleaned_data['notes']
-        obj['tags']=form.cleaned_data['tags'].split(" ")
+        obj['title']=sanitizeHtml(form.cleaned_data['title'])
+        obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
+        obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
         obj.save()
     else: # create
         obj=db.Bookmark({'url': url,
@@ -168,9 +194,9 @@ def add(request,url=None):
                          'created': datetime.today(),
                          'updated': datetime.today(),
                          'private': form.cleaned_data['private'],
-                         'title': form.cleaned_data['title'],
-                         'notes': form.cleaned_data['notes'],
-                         'tags': form.cleaned_data['tags'].split(' '),
+                         'title': sanitizeHtml(form.cleaned_data['title']),
+                         'notes': sanitizeHtml(form.cleaned_data['notes']),
+                         'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
                         }).save()
     return HttpResponseRedirect("/u/%s/" % request.user)
 

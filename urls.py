@@ -14,10 +14,10 @@ urlpatterns = patterns('',
     (r'^edit/(?P<url>.+)', tags.add),
     (r'^del/(?P<url>.+)', tags.delete),
     (r'^import/', tags.load),
-    (r'^$', tags.list),                                       # list all (except private)
-    (r'^t/(?P<tags>.+)?', tags.list),                         # ... filtered by tags
-    (r'^u/(?P<user>.+)/$', tags.list),                        # list only users items
-    (r'^u/(?P<user>.+)/(?P<tags>.+)?$', tags.list),           # ... filtered by tags
+    (r'^$', tags.show),                                       # list all (except private)
+    (r'^t/(?P<tags>.+)?', tags.show),                         # ... filtered by tags
+    (r'^u/(?P<user>.+)/$', tags.show),                        # list only users items
+    (r'^u/(?P<user>.+)/(?P<tags>.+)?$', tags.show),           # ... filtered by tags
 
     # Uncomment the next line to enable the admin:
     #(r'^admin/', include(admin.site.urls)),
