@@ -10,7 +10,7 @@ $(document).ready(function(){
     $(".suggestedTag").click( function(event) {
         var self=$(this)
          if(document.addForm.tags.value) {
-              document.addForm.tags.value+=', '; }
+              document.addForm.tags.value+=' '; }
          document.addForm.tags.value+=self.attr('name');
          self.hide();
     });
@@ -34,7 +34,7 @@ $(document).ready(function(){
         {% endfor %}
     </td></tr>
     <tr><td>{{form.private.label_tag}}</td><td>{{form.private}}</td></tr>
-    <tr><td /><td><input type="submit" value="submit" /></td></tr>
+    <tr><td /><td><input type="submit" value="save" /></td></tr>
   </table>
 </form>
 {%endblock%}
