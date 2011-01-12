@@ -9,9 +9,9 @@
    {% for item in items.object_list %}
 	<entry>
 		<title>{{item.title}}</title>
-		<link rel="alternate" type="text/html" href="item.url"/>
-		<updated>item.created</updated>
-      <id>item.url</id>
+		<link rel="alternate" type="text/html" href="{{item.url}}"/>
+		<updated>{{item.created}}</updated>
+      <id>{{item.url}}</id>
       {% for tag in item.tags %}
 		<category term="{{tag}}" scheme="http://www.sixapart.com/ns/types#category"/>
       {%endfor%}
