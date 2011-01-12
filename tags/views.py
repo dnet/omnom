@@ -126,11 +126,15 @@ def add(request,url=None):
                        'popup' : True }
                 try:
                     suggestedTags=set(suggestTags(data['url']).keys())
-                    suggestedTags.update(getCalaisTags(data['notes']))
                 except: suggestedTags=set()
+                try:
+                    suggestedTags.update(getCalaisTags(data['notes']))
+                except: pass
                 form = AddBookmarkForm(data)
         try:
             suggestedTags=set(suggestTags(form.cleaned_data['url']).keys())
+        except: pass
+        try:
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         except: pass
         return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) }, context_instance=RequestContext(request))
