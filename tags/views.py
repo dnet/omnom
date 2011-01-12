@@ -23,7 +23,7 @@ collection = database['bookmarks']
 def list(request,tags=[],user=None):
     if user:
         try: user = User.objects.get(username=user)
-        except ObjectDoesNotExist: return HttpResponse("no such user")
+        except ObjectDoesNotExist: return HttpResponse("no access")
 
     try: limit=int(request.GET.get('limit'))
     except TypeError, ValueError: limit=25
@@ -41,7 +41,7 @@ def list(request,tags=[],user=None):
     db = get_database()[Bookmark.collection_name]
     query={}
     if user and request.user!=user:
-        query['private']=0
+        query['private']=False
     if user:
         query['user']=unicode(user)
     if tags:
@@ -104,6 +104,13 @@ def list(request,tags=[],user=None):
                                      'path': request.path},
                              context_instance=RequestContext(request) )
 
+apacheFix=re.compile(r'(https?://?)\w*')
+def fixApacheMadness(url):
+    m=re.match(apacheFix,url)
+    if m and m.group(1)[-2:] != '//':
+        url="%s/%s" % (m.group(1),url[len(m.group(1)):])
+    return url
+
 def add(request,url=None):
     form = AddBookmarkForm(request.GET)
     try: user=User.objects.get(username=request.user)
@@ -114,6 +121,7 @@ def add(request,url=None):
     db = get_database()[Bookmark.collection_name]
     if not form.is_valid() or form.cleaned_data['popup']:
         if url: # try to edit an existing bookmark?
+            url=fixApacheMadness(url)
             try:
                 obj=db.find_one({'url':url, 'user': unicode(user)})
             except ObjectDoesNotExist: obj=None
@@ -167,6 +175,7 @@ def add(request,url=None):
     return HttpResponseRedirect("/u/%s/" % request.user)
 
 def delete(request,url):
+    url=fixApacheMadness(url)
     try:
         user=User.objects.get(username=request.user)
         db = get_database()[Bookmark.collection_name]
