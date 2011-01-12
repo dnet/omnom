@@ -55,17 +55,17 @@
   <div class="meta">
     <span class="tagcontainer">
     {%for tag in item.tags%}
-        {%if user.is_authenticated %}
-        <a rel="tag" href="/u/{{user}}/{{tag}}">{{tag}}</a>
-        {%else%}
+        {%if root_url == baseurl %}
         <a rel="tag" href="/t/{{tag}}">{{tag}}</a>
+        {%else%}
+        <a rel="tag" href="{{baseurl}}{%if tags%}+{%endif%}{{tag}}">{{tag}}</a>
         {%endif%}
     {%endfor%}
     </span>
     ... on {{item.created}}
   </div>
   {%if user.username == item.user %}
-  <a href="{%root_url%}/edit/{{item.url}}">Edit</a> | <a href="{%root_url%}/del/{{item.url}}">Delete</a>
+  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
   {%endif%}
 </div>
 {%endfor%}
