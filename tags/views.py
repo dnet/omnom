@@ -12,7 +12,7 @@ from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup, Comment
 from datetime import datetime
-from urlparse import urljoin
+from urlparse import urljoin, urlparse, urlunparse
 import urllib2, re, urllib, json, pymongo
 
 from django_mongokit import get_database
@@ -137,6 +137,14 @@ def fixApacheMadness(url):
         url="%s/%s" % (m.group(1),url[len(m.group(1)):])
     return url
 
+utmRe=re.compile('utm_(source|medium|campaign|content)=')
+def urlSanitize(url):
+    # removes annoying UTM params to urls.
+    pcs=urlparse.urlparse(url)
+    tmp=list(pcs)
+    tmp[4]='&'.join([x for x in pcs.query.split('&') if not utmRe.match(x)])
+    return urlparse.urlunparse(tmp)
+
 def add(request,url=None):
     form = AddBookmarkForm(request.GET)
     try: user=User.objects.get(username=request.user)
@@ -148,6 +156,7 @@ def add(request,url=None):
     if not form.is_valid() or form.cleaned_data['popup']:
         if url: # try to edit an existing bookmark?
             url=fixApacheMadness(url)
+            url=urlSanitize(url)
             try:
                 obj=db.find_one({'url':url, 'user': unicode(user)})
             except ObjectDoesNotExist: obj=None
@@ -174,7 +183,7 @@ def add(request,url=None):
         return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) }, context_instance=RequestContext(request))
 
     # ok we have some valid form. let's save it.
-    url=form.cleaned_data['url']
+    url=urlSanitize(form.cleaned_data['url'])
     try:
         obj=db.one({'url': url, 'user': unicode(user)})
     except ObjectDoesNotExist:
@@ -226,7 +235,7 @@ def load(request):
                     next=next[0]
                     if 'name' in dir(next) and next.name=='dd':
                         desc=unescape(u''.join([unicode(x) for x in next.contents]))
-                db.Bookmark({'url': item.a['href'],
+                db.Bookmark({'url': urlSanitize(item.a['href']),
                              'tags': [tag for tag in item.a['tags'].split(',')],
                              'user': unicode(request.user),
                              'created': datetime.fromtimestamp(float(item.a['add_date'])),
