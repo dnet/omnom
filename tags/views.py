@@ -121,14 +121,15 @@ def show(request,tags=[],user=None):
                       'notes': unescape(obj['notes']),
                       'tags': [unicode(x) for x in obj['tags']]
                       } for obj in res.object_list]
-    return render_to_response(tpl, { 'items': res,
-                                     'limit': limit,
-                                     'total': total,
-                                     'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
-                                     'tagcloud': json.dumps(tagcloud),
-                                     'baseurl': baseurl,
-                                     'path': request.path},
-                             context_instance=RequestContext(request) )
+    return render_to_response(tpl,
+                              { 'items': res,
+                                'limit': limit,
+                                'total': total,
+                                'tags': [(tag, "+".join([t for t in tags if not t == tag])if len(tags)>1 else path) for tag in tags] if tags else [],
+                                'tagcloud': json.dumps(tagcloud),
+                                'baseurl': baseurl,
+                                'path': request.path},
+                              context_instance=RequestContext(request) )
 
 apacheFix=re.compile(r'(https?://?)\w*')
 def fixApacheMadness(url):
@@ -166,7 +167,7 @@ def add(request,url=None):
                        'tags' : ' '.join([unicode(x) for x in obj['tags']]),
                        'notes' : obj['notes'],
                        'private' : obj['private'],
-                       'popup' : True }
+                       'popup' : form.cleaned_data['popup'] }
                 try:
                     suggestedTags=set(suggestTags(data['url']).keys())
                 except: suggestedTags=set()
@@ -180,7 +181,10 @@ def add(request,url=None):
         try:
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         except: pass
-        return render_to_response('add.html', { 'form': form, 'suggestedTags': sorted(suggestedTags) }, context_instance=RequestContext(request))
+        return render_to_response('add.html',
+                                  { 'form': form,
+                                    'suggestedTags': sorted(suggestedTags) },
+                                  context_instance=RequestContext(request))
 
     # ok we have some valid form. let's save it.
     url=urlSanitize(form.cleaned_data['url'])
