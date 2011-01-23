@@ -34,7 +34,8 @@ $(document).ready(function(){
         {% endfor %}
     </td></tr>
     <tr><td>{{form.private.label_tag}}</td><td>{{form.private}}</td></tr>
-    <tr><td /><td><input type="submit" value="save" />{%if form.popup.data == '2' %}<a class="button" href="javascript:window.parent.document.getElementById('tagr_frame').style.display='none'">close</a>{%endif%}</td></tr>
+    <tr><td /><td><input type="submit" value="save" /></td></tr>
   </table>
+  {%if form.popup.data = '2' %}<input type="hidden" name="close" value='1' />{%endif%}
 </form>
 {%endblock%}
