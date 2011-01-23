@@ -15,6 +15,7 @@ urlpatterns = patterns('',
     (r'^del/(?P<url>.+)', tags.delete),
     (r'^import/', tags.load),
     (r'^$', tags.show),                                       # list all (except private)
+    (r'^v/(?P<shurl>.+)?', tags.view),                        # ... filtered by tags
     (r'^t/(?P<tags>.+)?', tags.show),                         # ... filtered by tags
     (r'^u/(?P<user>.+)/$', tags.show),                        # list only users items
     (r'^u/(?P<user>.+)/(?P<tags>.+)?$', tags.show),           # ... filtered by tags

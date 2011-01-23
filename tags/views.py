@@ -13,6 +13,8 @@ from lxml import etree
 from BeautifulSoup import BeautifulSoup, Comment
 from datetime import datetime
 from urlparse import urljoin, urlparse, urlunparse
+from counter import getNextVal
+from baseconv import base62
 import urllib2, re, urllib, json, pymongo
 
 from django_mongokit import get_database
@@ -100,7 +102,6 @@ def show(request,tags=[],user=None):
         res=[{'url': unicode(obj['url']),
               'title': unicode(obj['title']),
               'created': tuple(obj['created'].timetuple()),
-              'updated': tuple(obj['updated'].timetuple()),
               'private': obj['private'],
               'notes': unicode(unescape(obj['notes'])),
               'tags': obj['tags']
@@ -116,7 +117,6 @@ def show(request,tags=[],user=None):
                       'user': obj['user'],
                       'title': obj['title'],
                       'created': obj['created'],
-                      'updated': obj['updated'],
                       'private': obj['private'],
                       'notes': unescape(obj['notes']),
                       'tags': [unicode(x) for x in obj['tags']]
@@ -195,7 +195,6 @@ def add(request,url=None):
 
     if obj: # edit
         obj=db.Bookmark(obj)
-        obj['updated']=datetime.today()
         obj['private']=form.cleaned_data['private']
         obj['title']=sanitizeHtml(form.cleaned_data['title'])
         obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
@@ -203,15 +202,25 @@ def add(request,url=None):
         obj.save()
     else: # create
         obj=db.Bookmark({'url': url,
+                         'seq': getNextVal('seq'),
                          'user': unicode(request.user),
                          'created': datetime.today(),
-                         'updated': datetime.today(),
                          'private': form.cleaned_data['private'],
                          'title': sanitizeHtml(form.cleaned_data['title']),
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
-                        }).save()
-    return HttpResponseRedirect("/u/%s/" % request.user)
+                        })
+        obj.save()
+    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+
+def view(request,shurl):
+    db = get_database()[Bookmark.collection_name]
+    item=db.find_one({'seq':base62.to_decimal(shurl)})
+    item['shurl']=shurl
+    return render_to_response('view.html',
+                              { 'item': item, },
+                                context_instance=RequestContext(request))
+    #return HttpResponseRedirect("/u/%s" % request.user)
 
 def delete(request,url):
     url=fixApacheMadness(url)
@@ -243,7 +252,6 @@ def load(request):
                              'tags': [tag for tag in item.a['tags'].split(',')],
                              'user': unicode(request.user),
                              'created': datetime.fromtimestamp(float(item.a['add_date'])),
-                             'updated': datetime.now(),
                              'private': item.a['private']=='1',
                              'title': unescape(unicode(item.a.string)),
                              'notes': unicode(desc)}).save()

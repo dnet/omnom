@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django_mongokit import connection
 from django_mongokit.document import DjangoDocument
+from counter import getNextVal
 import datetime
 
 class Bookmark(DjangoDocument):
@@ -10,11 +11,11 @@ class Bookmark(DjangoDocument):
 
     collection_name = 'bookmarks'
     structure = {
+        'seq': int,
         'tags': [unicode],
         'user': unicode,
         'url': unicode,
         'created': datetime.datetime,
-        'updated': datetime.datetime,
         'private': bool,
         'title': unicode,
         'notes': unicode,
@@ -22,6 +23,7 @@ class Bookmark(DjangoDocument):
 
     default_values = {
         'created': datetime.datetime.utcnow,
+        'seq': getNextVal,
         }
 
     use_dot_notation = True
