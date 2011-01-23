@@ -24,6 +24,26 @@
 // the iframe in window.frames, or be created as "pane-1" onwards, otherwise.)
 // src: https://ecmanaut.googlecode.com/svn/trunk/lib/make-iframe.js
 
+function contentEval(source) {
+  // Check for function input.
+  if ('function' == typeof source) {
+    // Execute this function with no arguments, by adding parentheses.
+    // One set around the function, required for valid syntax, and a
+    // second empty set calls the surrounded function.
+    source = '(' + source + ')();';
+  }
+
+  // Create a script node holding this  source code.
+  var script = document.createElement('script');
+  script.setAttribute("type", "application/javascript");
+  script.textContent = source;
+
+  // Insert the script node into the page, so it will run, and immediately
+  // remove it to clean up.
+  document.body.appendChild(script);
+  document.body.removeChild(script);
+}
+
 function makeFrame(cb/*(iframeTag, window, document)*/, name, debug) {
   function testInvasion() {
     iframe.removeEventListener("load", done, true);
@@ -51,12 +71,13 @@ function makeFrame(cb/*(iframeTag, window, document)*/, name, debug) {
 
   function done() {
     clearTimeout(load.timeout);
+    iframe.removeEventListener("load", done, true);
     if (debug)
       console.log("IFrame %x load event after %d ms",
                   framename, (new Date)-load.start);
     var win = unsafeWindow.frames[framename];
     var doc = null;
-    if(!iframe.contentWindow) {
+    if(!iframe.contentWindow==null) {
       doc = iframe.contentWindow.document;
     }
     cb( iframe, win, doc );
@@ -105,47 +126,60 @@ function getSelected() {
   return txt;
 }
 
+function gotFrame(iframe, win, doc) {
+  iframe.id='tagr_frame';
+  var top=(WindowHeight()-512)/2;
+  var left=(window.innerWidth-880)/2;
+  iframe.style.cssText = 'border: 1px solid grey; background: white; position:fixed; z-index:9999; top:'+top+'px; left:'+left+'px; width: 880px; height: 512px;';
+  iframe.style.display = 'none';
+  toggleWidget(iframe);
+}
+
 function initWidget() {
-  makeFrame(gotFrame,'tagr_frame');
-  function gotFrame(iframe, win, doc) {
-    var top=(WindowHeight()-512)/2;
-    var left=(window.innerWidth-860)/2;
-    iframe.style.cssText = 'border: 1px solid grey; background: white; position:fixed; z-index:9999; top:'+top+'px; left:'+left+'px; width: 880px; height: 512px;';
+  GM_xmlhttpRequest({ method: "head",
+	                   url: "http://localhost:8001/"
+                    });
+  makeFrame(gotFrame,'tagr_frame',true);
+  var tc = document.createElement('div');
+  tc.id = 'tagr_container';
+  var top=((WindowHeight()-512)/2)-18;
+  var left=(window.innerWidth-880)/2;
+  tc.style.cssText = 'border: 1px solid grey; background: white; position:fixed; z-index:9999; top:'+top+'px; left:'+left+'px; width: 880px; height: 18px; cursor: pointer;';
+  tc.style.display = 'none';
+  tc.innerHTML = '<div onclick="javascript:window.parent.document.getElementById(\'tagr_container\').style.display=\'none\';var f=window.parent.document.getElementById(\'tagr_frame\'); f.style.display=\'none\'; f.innerHTML=\'\';void(0);">[close tagr]</div>';
+  document.getElementsByTagName('body')[0].appendChild(tc);
+}
+
+function toggleWidget(iframe) {
+  if(iframe.style.display != 'block') {
+    x=document;
+    a=encodeURIComponent(x.location.href);
+    t=encodeURIComponent(x.title);
+    d=encodeURIComponent(getSelected());
+    //var geturl = '{%root_url%}/add/';
+	 //iframe.src='http://links.ctrlc.hu/add/?popup=2&amp;url='+a+'&amp;title='+t+'&amp;notes='+d;
+    //iframe.innerHTML = 'Loading...';
+	 iframe.src='http://localhost:8001/add/?popup=2&amp;url='+a+'&amp;title='+t+'&amp;notes='+d;
+    iframe.style.display = 'block';
+    document.getElementById('tagr_container').style.display='block';
+
+    function close() {
+      contentEval("console.log(window.frames[0].contentDocument.location)"); //.contentWindow.document.body);
+      //if(doc.body.firstChild=="close") {
+      // iframe.style.display='none';
+      //}
+    }
+    iframe.addEventListener("load", close, true);
+  } else {
+    iframe.innerHTML = '';
     iframe.style.display = 'none';
-    iframe.id='tagr_frame';
-    GM_xmlhttpRequest({
-	                     method: "post",
-	                     url: "http://localhost:8001/import",
-	                     headers: { "Content-type" : "application/x-www-form-urlencoded" },
-	                     data: '' //encodeURI("username="+$("username").value+"&password="+$("password").value+"&message="+$("message").value),
-	                     //onload: function(e) { alert(e.responseText); }
-                      });
-    toggleWidget(iframe);
+    document.getElementById('tagr_container').style.display='none';
   }
 }
 
-
-function toggleWidget(iframe) {
-    if(iframe.style.display != 'block') {
-      x=document;
-      a=encodeURIComponent(x.location.href);
-      t=encodeURIComponent(x.title);
-      d=encodeURIComponent(getSelected());
-      //var geturl = '{%root_url%}/add/';
-	   //iframe.src='http://links.ctrlc.hu/add/?popup=2&amp;url='+a+'&amp;title='+t+'&amp;notes='+d;
-	   iframe.src='http://localhost:8001/add/?popup=2&amp;url='+a+'&amp;title='+t+'&amp;notes='+d;
-      iframe.style.display = 'block';
-    } else {
-      iframe.innerHTML = '';
-      iframe.style.display = 'none';
-    }
-}
-
-
-function load(e) {
+function keyHandler(e) {
   if (e.keyCode == 68 && !e.shiftKey && e.ctrlKey && e.altKey && !e.metaKey) {
     var iframe=document.getElementById('tagr_frame');
-    console.log(iframe);
     if(!iframe) {
       initWidget();
     } else {
@@ -155,4 +189,4 @@ function load(e) {
 }
 
 
-unsafeWindow.addEventListener('keydown', load, true);
+unsafeWindow.addEventListener('keydown', keyHandler, true);
