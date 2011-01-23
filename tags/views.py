@@ -141,10 +141,10 @@ def fixApacheMadness(url):
 utmRe=re.compile('utm_(source|medium|campaign|content)=')
 def urlSanitize(url):
     # removes annoying UTM params to urls.
-    pcs=urlparse.urlparse(url)
+    pcs=urlparse(url)
     tmp=list(pcs)
     tmp[4]='&'.join([x for x in pcs.query.split('&') if not utmRe.match(x)])
-    return urlparse.urlunparse(tmp)
+    return urlunparse(tmp)
 
 def add(request,url=None):
     form = AddBookmarkForm(request.GET)
@@ -211,6 +211,7 @@ def add(request,url=None):
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
                         }).save()
+    print form.cleaned_data['popup']
     return HttpResponseRedirect("/u/%s/" % request.user)
 
 def delete(request,url):
