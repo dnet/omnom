@@ -13,7 +13,7 @@ class AdvancedEditor(forms.Textarea):
 
 class AddBookmarkForm(forms.Form):
     url =forms.CharField(required=True, label="UR Location")
-    title = forms.CharField(required=True, label="Title")
+    title = forms.CharField(required=False, label="Title")
     tags = forms.CharField(required=False, label="Tags")
     suggestedTags = forms.CharField(required=False, label="Suggested Tags")
     notes = forms.CharField(required=False, widget=AdvancedEditor(), label="Notes")
