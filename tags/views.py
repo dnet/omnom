@@ -211,7 +211,6 @@ def add(request,url=None):
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
                         }).save()
-    print form.cleaned_data['popup']
     return HttpResponseRedirect("/u/%s/" % request.user)
 
 def delete(request,url):
