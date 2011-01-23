@@ -9,13 +9,15 @@ from tags import views as tags
 urlpatterns = patterns('',
     (r'^accounts/logout$', 'django.contrib.auth.views.logout', {'next_page' : '/'}),
     (r'^accounts/', include('registration.urls')),
+    (r'^tagr\.user\.js', tags.gmscript),
     (r'^tags/', tags.tags),
     (r'^add/', tags.add),
     (r'^edit/(?P<url>.+)', tags.add),
     (r'^del/(?P<url>.+)', tags.delete),
     (r'^import/', tags.load),
+    (r'^v/(?P<shurl>.+)?', tags.view),
+    (r'^r/(?P<shurl>.+)?', tags.shurlect),
     (r'^$', tags.show),                                       # list all (except private)
-    (r'^v/(?P<shurl>.+)?', tags.view),                        # ... filtered by tags
     (r'^t/(?P<tags>.+)?', tags.show),                         # ... filtered by tags
     (r'^u/(?P<user>.+)/$', tags.show),                        # list only users items
     (r'^u/(?P<user>.+)/(?P<tags>.+)?$', tags.show),           # ... filtered by tags

@@ -29,7 +29,7 @@ class Bookmark(DjangoDocument):
     use_dot_notation = True
 
     indexes = [
-        {'fields': ['user','url','created']},
+        {'fields': ['user','url','created', 'seq']},
         ]
     def __unicode__(self):
         return self.title

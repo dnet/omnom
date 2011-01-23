@@ -1,0 +1,28 @@
+{% extends "base.html" %}{%load tagger%}
+
+{%block rss%}
+    <link rel="alternate" type="application/atom+xml" title="Atom feed" href="{{baseurl}}?format=atom">
+{%endblock%}
+
+{%block content%}
+<div class="xfolkentry">
+  <div><a class="taggedlink" href="{{item.url}}">{{item.title|safe}}</a></div>
+  <div>"Shortish URL" <input type="text" value="{%root_url%}/r/{{item.shurl}}"></input></div>
+  <div class="description">{{item.notes|safe}}</div>
+  <div class="meta">
+    <span class="tagcontainer">
+    {%for tag in item.tags%}
+        {%if baseurl == '/' %}
+        <a rel="tag" href="/t/{{tag}}">{{tag}}</a>
+        {%else%}
+        <a rel="tag" href="{{baseurl}}{%if tags%}+{%endif%}{{tag}}">{{tag}}</a>
+        {%endif%}
+    {%endfor%}
+    </span>
+    ... on {{item.created}}
+  </div>
+  {%if user.username == item.user %}
+  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
+  {%endif%}
+</div>
+{%endblock%}

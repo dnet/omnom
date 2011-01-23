@@ -1,5 +1,5 @@
 from models import Bookmark
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from django.core.exceptions import ObjectDoesNotExist
@@ -141,7 +141,7 @@ def fixApacheMadness(url):
 utmRe=re.compile('utm_(source|medium|campaign|content)=')
 def urlSanitize(url):
     # removes annoying UTM params to urls.
-    pcs=urlparse(url)
+    pcs=urlparse(urllib.unquote_plus(url))
     tmp=list(pcs)
     tmp[4]='&'.join([x for x in pcs.query.split('&') if not utmRe.match(x)])
     return urlunparse(tmp)
@@ -213,14 +213,46 @@ def add(request,url=None):
         obj.save()
     return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
 
-def view(request,shurl):
+slugRe=re.compile(r'^[0-9A-Za-z]+$')
+def getItemByUrl(url):
     db = get_database()[Bookmark.collection_name]
-    item=db.find_one({'seq':base62.to_decimal(shurl)})
-    item['shurl']=shurl
-    return render_to_response('view.html',
-                              { 'item': item, },
-                                context_instance=RequestContext(request))
-    #return HttpResponseRedirect("/u/%s" % request.user)
+    if slugRe.match(url):
+        item=db.find_one({'seq':base62.to_decimal(url)})
+    else:
+        url=fixApacheMadness(url)
+        url=urlSanitize(url)
+        item=db.find_one({'url':url})
+    if not item:
+        raise Http404
+    return item
+
+def view(request,shurl):
+    item=getItemByUrl(shurl)
+    item['shurl']=base62.from_decimal(item['seq'])
+
+    if request.GET.get('format','') == 'json':
+        del item['user']
+        res={'url': unicode(item['url']),
+             'title': unicode(item['title']),
+             'created': tuple(item['created'].timetuple()),
+             'private': item['private'],
+             'notes': unicode(unescape(item['notes'])),
+             'tags': item['tags']
+             }
+        return HttpResponse(json.dumps(res),
+                            mimetype="application/json")
+    else:
+        return render_to_response('view.html',
+                                  { 'item': item, },
+                                  context_instance=RequestContext(request))
+
+def shurlect(request,shurl):
+    item=getItemByUrl(shurl)
+    return HttpResponseRedirect("%s" % (item['url']))
+
+def gmscript(request):
+    #return HttpResponse(json.dumps(res),mimetype="application/json")
+    return render_to_response('tagr.user.js',mimetype="application/javascript")
 
 def delete(request,url):
     url=fixApacheMadness(url)
@@ -249,6 +281,7 @@ def load(request):
                     if 'name' in dir(next) and next.name=='dd':
                         desc=unescape(u''.join([unicode(x) for x in next.contents]))
                 db.Bookmark({'url': urlSanitize(item.a['href']),
+                             'seq': getNextVal('seq'),
                              'tags': [tag for tag in item.a['tags'].split(',')],
                              'user': unicode(request.user),
                              'created': datetime.fromtimestamp(float(item.a['add_date'])),
