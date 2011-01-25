@@ -147,11 +147,15 @@ def urlSanitize(url):
     return urlunparse(tmp)
 
 def add(request,url=None):
-    form = AddBookmarkForm(request.GET)
+    if request.method == 'GET':
+        form = AddBookmarkForm(request.GET)
+    elif request.method == 'POST':
+        form = AddBookmarkForm(request.POST)
+    else:
+        return HttpResponse("wrong method")
     try: user=User.objects.get(username=request.user)
     except ObjectDoesNotExist:
         return HttpResponseRedirect("/accounts/login")
-
     suggestedTags=set()
     db = get_database()[Bookmark.collection_name]
     if not form.is_valid() or form.cleaned_data['popup']:
