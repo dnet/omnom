@@ -147,10 +147,13 @@ def urlSanitize(url):
     return urlunparse(tmp)
 
 def add(request,url=None):
+    done=False
     if request.method == 'GET':
         form = AddBookmarkForm(request.GET)
     elif request.method == 'POST':
         form = AddBookmarkForm(request.POST)
+        if request.GET.get('close'):
+            done=True
     else:
         return HttpResponse("wrong method")
     try: user=User.objects.get(username=request.user)
@@ -185,7 +188,8 @@ def add(request,url=None):
         try:
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         except: pass
-        return render_to_response('add.html',
+        tpl='add.html' if form.cleaned_data.get('popup','') == 1 else 'addWidget.html'
+        return render_to_response(tpl,
                                   { 'form': form,
                                     'suggestedTags': sorted(suggestedTags) },
                                   context_instance=RequestContext(request))
@@ -215,7 +219,8 @@ def add(request,url=None):
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
                         })
         obj.save()
-    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+    return HttpResponse("close")
+    #return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
 
 slugRe=re.compile(r'^[0-9A-Za-z]+$')
 def getItemByUrl(url):

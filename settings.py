@@ -62,7 +62,7 @@ ROOT_URL = 'http://localhost:8001'
 # trailing slash if there is a path component (optional in other cases).
 # Examples: "http://media.lawrence.com", "http://example.com/media/"
 if DEV_SERVER:
-    MEDIA_URL = '/site_media'
+    MEDIA_URL = ROOT_URL+'/site_media'
 else:
     MEDIA_URL = ROOT_URL+'/media'
 

@@ -1,0 +1,15 @@
+#tagr_div * { font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; }
+#tagr_div { border: 0; padding: 0;}
+#tagr_div [rel=tag] { background-color: #ddd;  margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; }
+#tagr_div [rel=tag]:hover { text-decoration: none; color: #fff; }
+#tagr_div input { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; }
+#tagr_div .button { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; padding: 0px 6px 0px 6px; margin: 4px; text-decoration: none; color: #666666; font-size: 0.9em;}
+#tagr_div fieldset { font-size: 0.8em; margin-bottom: 14px; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;}
+#tagr_div a { text-decoration: none; color: #0088dd; }
+#tagr_div a[href]:hover { text-decoration: none; color: #000; }
+#tagr_div input[type=text] { width: 598px; }
+#tagr_div .suggestedTag { cursor: pointer ; color: #0088dd; }
+#tagr_div .xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;width:800px;}
+#tagr_div .xfolkentry [rel=tag] {float: right; }
+#tagr_div ul.tags { margin: 0px; padding:5px 0 5px 65px;}
+#tagr_div .tags li { display: inline; list-style: none; }
