@@ -17,9 +17,21 @@ def snapshot(url):
     try:
         response = urlopen(HeadRequest(url))
     except URLError, e:
-        print e, url
-        return
-    #print response.info().__str__()
+        return e, url
+    t=response.info().get('Content-Type')
+    i=t.find(';')
+    if i>=0:
+        t=t[:i]
+    if not t in ['text/xml',
+                 'text/html',
+                 'text/plain']:
+        return "sorry wrong type (%s)! %s" % (t,url)
+    try:
+        l=int(response.info().get('Content-Length','0'))
+    except:
+        return "sorry wrong length(%s)! %s" % (l,url)
+    if l>1024*1024*10:
+        return "sorry too big (%dMB)! %s" % (l/(1024*1024),url)
 
     d=mkdtemp()
 
@@ -29,13 +41,13 @@ def snapshot(url):
     ret=Popen(['/usr/bin/wget', '-q', '-E', '-H', '-k', '-K', '-p', url],
               cwd=pagedir).wait()
     if ret != 0:
-        return None
+        return 'download error', ret
 
     # compress the snapshot
     ret=Popen(['/usr/bin/zip', '-r', '-q', 'contents.zip', 'contents'],
                   cwd=d).wait()
     if ret != 0:
-        return None
+        return 'compression error', ret
 
     # calculate hashsums
     pcs=urlparse(unquote_plus(url))
@@ -57,16 +69,25 @@ def snapshot(url):
         hashs[hsh[:-3]]=val.split('\n')[0].split(' ',2)[0]
 
     rmtree(d)
-    print (rootdoc, hashs, '%s/contents.zip' % d, zhashs)
+    return (rootdoc, hashs, '%s/contents.zip' % d, zhashs)
+
+def worker(url,fn=snapshot):
+    print fn(url)
 
 if __name__ == "__main__":
-    from multiprocessing import Pool
-    urls=['http://docs.python.org/library/subprocess.html#module-subprocess',
-          'http://docs.python.org/library/multiprocessing.html',
-          'http://dos.python.org/library/multiprocessing.html',
-          'http://docs.python.org/library/xultiprocessing.html',
-          'http://code.activestate.com/recipes/203871-a-generic-programming-thread-pool/',
-          'http://docs.python.org/library/urllib2.html',
-          ]
-    p = Pool(3)
-    p.map(snapshot, urls)
+    import pymongo
+    conn = pymongo.Connection()
+    db=conn.tagger
+    bm=db.bookmarks
+    urls=[i['url'] for i in bm.find({},['url'])]
+    print urls
+    #urls=['http://docs.python.org/library/subprocess.html#module-subprocess',
+    #      'http://docs.python.org/library/multiprocessing.html',
+    #      'http://dos.python.org/library/multiprocessing.html',
+    #      'http://docs.python.org/library/xultiprocessing.html',
+    #      'http://code.activestate.com/recipes/203871-a-generic-programming-thread-pool/',
+    #      'http://docs.python.org/library/urllib2.html',
+    #      ]
+    #from multiprocessing import Pool
+    #p = Pool(3)
+    #p.map(worker, urls)
