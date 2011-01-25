@@ -1,5 +1,6 @@
 from django import forms
 from django.conf import settings
+from django.forms.widgets import HiddenInput
 
 class AdvancedEditor(forms.Textarea):
 	class Media:
@@ -19,6 +20,7 @@ class AddBookmarkForm(forms.Form):
     notes = forms.CharField(required=False, widget=AdvancedEditor(), label="Notes")
     private = forms.BooleanField(required=False, label="Private")
     popup = forms.IntegerField(required=False)
+    page = forms.CharField(required=False, widget=HiddenInput)
 
 class ImportDeliciousForm(forms.Form):
     exported = forms.FileField(required=True, label="Upload Delicious export")
