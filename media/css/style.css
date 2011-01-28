@@ -9,13 +9,13 @@ a { text-decoration: none; color: #0088dd; }
 a[href]:hover { text-decoration: none; color: #000; }
 input[type=text] { width: 598px; }
 .suggestedTag { cursor: pointer ; color: #0088dd; }
-.xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;width:800px;}
+.xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px; margin-right: 350px;}
 .xfolkentry [rel=tag] {float: right; }
-.meta .tagcontainer { width: 500px; float: right;}
+.meta .tagcontainer { width: 350px; float: right;}
 #auth { float: right; }
 .pagination {padding:12px 0 12px 65px;}
-#totalcontainer {padding:12px 0 12px 65px;width:800px; margin-bottom: -6px; }
-#total { float: right; background-color: #0088dd; color: #fff; padding: 3px; color: #fff; }
+#totalcontainer {padding:12px 0 12px 65px; margin-bottom: -6px; }
+#total { float: right; background-color: #0088dd; color: #fff; padding: 3px; color: #fff; margin-right: 34px; }
 #timecloud { width: 300px; float: right; margin-right: 15px; margin-top: 15px; }
 .control-container { display: none; }
 ul.tags { margin: 0px; padding:5px 0 5px 65px;}
