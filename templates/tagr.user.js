@@ -1,4 +1,4 @@
-// --------------------------------------------------------------------
+{%load tagger%}// --------------------------------------------------------------------
 //
 // This is a Greasemonkey user script.  To install it, you need
 // Greasemonkey 0.3 or later: http://greasemonkey.mozdev.org/
