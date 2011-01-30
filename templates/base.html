@@ -17,6 +17,7 @@
     {% endblock %}
 </head>
 <body>
+  <div>
   <div id="auth">
 {% if user.is_authenticated %}
     {{ user.username }} | <a href="{%root_url%}/accounts/logout">Logout</a>
@@ -35,5 +36,6 @@
 {% block content %}
 {% endblock %}
 {% block other_content %} {% endblock %}
+  </div>
 </body>
 </html>
