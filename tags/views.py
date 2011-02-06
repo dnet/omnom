@@ -6,9 +6,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template import RequestContext
-from tagger import conf
-from tagger.utils import unescape
-from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
+import conf
+from utils import unescape
+from tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup, Comment
 from datetime import datetime

@@ -50,6 +50,16 @@
 <span id="total">{{total}}</span></div>
 {% for item in items.object_list %}
 <div class="xfolkentry">
+  <div class="actions">
+  {%if user.username == item.user %}
+	<a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a>
+	<a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
+  {%else %}
+	{% if user.is_active %}
+	<a href="{%root_url%}/add/{{item.url|urlencode}}">Purloin</a>
+	{% endif %}
+  {%endif%}
+  </div>
   <div><a class="taggedlink" href="{{item.url}}">{{item.title|safe}}</a></div>
   <div class="description">{{item.notes|safe}}</div>
   <div class="meta">
@@ -62,11 +72,9 @@
         {%endif%}
     {%endfor%}
     </span>
-    ... on {{item.created}}
+
+	<div class="datetime">{{item.created|date:"d/m/Y h:m:s"}}</div>
   </div>
-  {%if user.username == item.user %}
-  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
-  {%endif%}
 </div>
 {%endfor%}
 {% include "paging.html" %}
