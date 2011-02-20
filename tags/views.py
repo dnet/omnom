@@ -161,7 +161,7 @@ def add(request,url=None):
         return HttpResponseRedirect("/accounts/login")
     suggestedTags=set()
     db = get_database()[Bookmark.collection_name]
-    if not form.is_valid() or form.cleaned_data['popup']:
+    if request.REQUEST.get("dontsave", 0) or not form.is_valid() or form.cleaned_data['popup']:
         if url: # try to edit an existing bookmark?
             url=fixApacheMadness(url)
             url=urlSanitize(url)
@@ -188,7 +188,10 @@ def add(request,url=None):
         try:
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         except: pass
-        tpl='add.html' if form.cleaned_data.get('popup','') == 1 else 'addWidget.html'
+        if hasattr(form, "cleaned_data"):
+            tpl='add.html' if form.cleaned_data.get('popup','') == 1 else 'addWidget.html'
+        else:
+            tpl='addWidget.html'
         return render_to_response(tpl,
                                   { 'form': form,
                                     'suggestedTags': sorted(suggestedTags) },
@@ -398,15 +401,16 @@ def bibtex(request, url):
 
 	ctx["type"] = "MISC"
 	ctx["url"] = obj["url"]
+	base = {"author": "", "title": "", "url": "", "year": "", "notes": ""}
+	base.update(obj)
 	ctx["bibtex"] = """
 @MISC { tagr%(seq)s,
-	author = "",
+	author = "%(author)s",
 	title = "%(title)s",
 	howpublished = "\url{%(url)s}",
-	month = "",
-	year = "",
-	note = "",
+	year = "%(year)s",
+	note = "%(notes)s",
 }
-""" % obj
+""" % base
 
 	return HttpResponse(json.dumps(ctx))
