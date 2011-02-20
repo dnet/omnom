@@ -392,3 +392,21 @@ def tags(request):
 #plugins=(deliciousSuggested, traverse, flickrTags, slashdotTags)
 plugins=(deliciousSuggested, flickrTags, slashdotTags)
 
+def bibtex(request, url):
+	ctx = {}
+	obj = getItemByUrl(url)
+
+	ctx["type"] = "MISC"
+	ctx["url"] = obj["url"]
+	ctx["bibtex"] = """
+@MISC { tagr%(seq)s,
+	author = "",
+	title = "%(title)s",
+	howpublished = "\url{%(url)s}",
+	month = "",
+	year = "",
+	note = "",
+}
+""" % obj
+
+	return HttpResponse(json.dumps(ctx))

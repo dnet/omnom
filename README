@@ -1,0 +1,32 @@
+Required packages:
+
+python
+django
+MongoDB >= 1.6.5
+python-pymongo
+django-registration
+django-mongokit
+
+...
+
+
+== Federation thoughts ==
+
+ - Server A and Server B want to federate. Admins add each others public key to their DB.
+ - Each server maintains an escrow set
+ - When a new bookmark comes in to server A, it chooses one (or more) of its friends
+    at random and escrows a copy of the bookmark to there.
+
+
+ Questions:
+    - How do servers protect their user information?
+
+FriendlyServer:
+	address
+	pubkey
+	
+EscrowSet:
+	fromserver
+	bookmarks
+
+

@@ -28,7 +28,7 @@
    $.widget("ui.timecloud", {
       ui: function(e) {
          return {
-            options: this.options,
+            options: this.options
          };
       },
 
@@ -56,7 +56,7 @@
               this.frames.push([this.options.timecloud[id][0], this.options.timecloud[id][1]]);
 
               // calculate overview counts
-              curDay = this.options.timecloud[id][1];
+              var curDay = this.options.timecloud[id][1];
               var tag;
               var cnt = 0;
               for (tag in curDay) {
@@ -109,7 +109,7 @@
           this.overviewElem = this.buildOverview();
           this.element.append(this.overviewElem);
 
-          // build the detail area: 
+          // build the detail area:
           // * an optional zoomed in portion of the overview is displayed,
           // * an optional playback controls and
           // * and of course the tagcloud
@@ -122,7 +122,7 @@
                   thisObj.nextFrame();
               } else {
                   thisObj.prevFrame();
-              }})
+              }});
 
           // building the animation controls
           // setup controls for time window size
@@ -152,9 +152,9 @@
                   orientation: 'horizontal',
                   range: true,
                   stop: function(e,ui) {
-                     return thisObj.overviewZoomed(e,ui)},
+                     return thisObj.overviewZoomed(e,ui);}
               },
-              function(e,ui) { return thisObj.overviewMoved(e,ui)});
+              function(e,ui) { return thisObj.overviewMoved(e,ui);});
 
           elem.append(timegraph);
           elem.window=$('.ui-slider',elem);
@@ -180,7 +180,7 @@
               axis: 'x',
               containment: '.ui-slider',
               helper: 'clone',
-              stop: function(e,ui) { dragCb(e,ui); }, 
+              stop: function(e,ui) { dragCb(e,ui); }
               });
           return this.buildSparkline().append(window);
       },
@@ -548,7 +548,7 @@
       addDay: function (d,n) {
           var oneday = 24*60*60*1000;
           return new Date(d.getTime() + n*oneday);
-      },
+      }
     });
 
     $.ui.timecloud.getter = "start winSize steps timeout play graphStyle";

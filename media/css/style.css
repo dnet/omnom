@@ -85,3 +85,19 @@ ul.tags { margin: 0px; padding:5px 0 5px 65px;}
 	font-size:		8pt;
 	color:			#4c846e;
 }
+
+
+.dialog {
+        display: none;
+        position: fixed;
+        text-align: center;
+        top: 30%;
+        left: 0;
+	min-height: 200px;
+        width: 36%;
+        background: #fff;
+        margin-left: 32%;
+        margin-right: 32%;
+	border:	1px solid #4c846e;
+        padding: 5px;
+}
