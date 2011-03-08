@@ -1,0 +1,103 @@
+* { font-family: Verdana,Arial,Helvetica,sans-serif; }
+body { border: 0; padding: 0; margin: 0; }
+[rel=tag] { 
+	background-color:	#ddd;  
+	margin-left:		5px;
+	margin-bottom:		2px;
+	padding:		1px;
+}
+[rel=tag]:hover {
+	text-decoration:	none;
+	color:			#fff;
+}
+input { border: 1px solid #4c846e; background: #FFFFFF; color: #666666; }
+.button { border: 1px solid #4c846e; background: #FFFFFF; color: #666666; padding: 0px 6px 0px 6px; margin: 4px; text-decoration: none; color: #666666; font-size: 0.9em;}
+fieldset { font-size: 0.8em; margin-bottom: 14px; border: 1px solid #4c846e; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;}
+a { text-decoration: none; color: #4c846e; }
+a[href]:hover { text-decoration: none; color: #000; }
+input[type=text] { width: 598px; }
+.suggestedTag { cursor: pointer ; color: #4c846e; }
+.meta .tagcontainer { font-size: 90%; width: 400px; float: right;}
+#auth { float: right; }
+.pagination {padding:12px 0 12px 65px;}
+#totalcontainer {padding:12px 0 12px 65px; margin-bottom: -6px; }
+#total { float: right; background-color: #4c846e; color: #fff; padding: 3px; color: #fff; margin-right: 34px; }
+#timecloud { width: 300px; float: right; margin-right: 15px; margin-top: 15px; }
+.control-container { display: none; }
+ul.tags { margin: 0px; padding:5px 0 5px 65px;}
+.tags li { display: inline; list-style: none; }
+
+.taggedlink {
+	color:			#09402a;
+}
+
+.xfolkentry {
+	border-top:		1px solid #4c846e;
+	overflow:		hidden; 
+	padding:		12px 0 12px 65px;
+	width:			800px;
+	/* margin-right:		350px; */
+}
+
+.xfolkentry [rel=tag] {
+	float:			right;
+}
+
+.menu {
+	padding:		5px;
+	background:		#c9e5bf;
+	border-bottom:		1px solid #4c846e;
+}
+
+.menu a {
+	padding:		5px;
+}
+
+.menu a:hover {
+	background:		#4c846e;
+}
+
+
+.actions {
+	font-size:		8pt;
+	float:			right;
+	padding:		5px;
+	margin-top:		-13px;
+	display:		block;
+	/* display:		none; */
+	background:		#c9e5bf;
+	border:			1px solid #4c846e;
+}
+
+
+.actions a {
+	padding-left:		3px;
+	padding-right:		3px;
+}
+
+
+.xfolkentry:hover .actions {
+	/* display:		block; */
+}
+
+
+.datetime {
+	font-size:		8pt;
+	color:			#4c846e;
+}
+
+
+.dialog {
+        display: none;
+        position: fixed;
+        text-align: center;
+        top: 30%;
+        left: 0;
+	min-height: 200px;
+        width: 36%;
+        background: #fff;
+        margin-left: 32%;
+        margin-right: 32%;
+	border:	1px solid #4c846e;
+        padding: 5px;
+}
