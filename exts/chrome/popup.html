@@ -1,0 +1,47 @@
+<style>
+body {
+	min-width:	457px;
+	max-height:	400px;
+	overflow:	hidden;
+}
+
+img {
+	margin:		5px;
+	border:		2px solid black;
+	vertical-align:	middle;
+	width:		75px;
+	height:		75px;
+}
+
+iframe {
+	border:		none;
+	width:		100%;
+	height:		450px;
+}
+</style>
+
+<script>
+	function doSave(url, title, sel) {
+		var server = localStorage.server + "add/?url=" + encodeURIComponent(url) + "&title=" + encodeURIComponent(title) + "&dontsave=1";
+		var m = document.getElementById("frame");
+		m.src = server;
+		
+	}
+
+	chrome.tabs.getSelected(null, function(tab){
+		var url;
+		if (!url || url === "") {
+			url = tab.url;
+		}
+		var title;
+		if (!title || title === "") {
+			title = tab.title;
+		}
+		var sel;
+		doSave(url, title, sel);
+	});	
+</script>
+
+<iframe id="frame">
+
+</iframe>

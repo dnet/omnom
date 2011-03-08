@@ -6,9 +6,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template import RequestContext
-from tagger import conf
-from tagger.utils import unescape
-from tagger.tags.forms import AddBookmarkForm, ImportDeliciousForm
+import conf
+from utils import unescape
+from tags.forms import AddBookmarkForm, ImportDeliciousForm
 from lxml import etree
 from BeautifulSoup import BeautifulSoup, Comment
 from datetime import datetime
@@ -161,7 +161,7 @@ def add(request,url=None):
         return HttpResponseRedirect("/accounts/login")
     suggestedTags=set()
     db = get_database()[Bookmark.collection_name]
-    if not form.is_valid() or form.cleaned_data['popup']:
+    if request.REQUEST.get("dontsave", 0) or not form.is_valid() or form.cleaned_data['popup']:
         if url: # try to edit an existing bookmark?
             url=fixApacheMadness(url)
             url=urlSanitize(url)
@@ -188,7 +188,10 @@ def add(request,url=None):
         try:
             suggestedTags.update(getCalaisTags(form.cleaned_data['notes']))
         except: pass
-        tpl='add.html' if form.cleaned_data.get('popup','') == 1 else 'addWidget.html'
+        if hasattr(form, "cleaned_data"):
+            tpl='add.html' if form.cleaned_data.get('popup','') == 1 else 'addWidget.html'
+        else:
+            tpl='addWidget.html'
         return render_to_response(tpl,
                                   { 'form': form,
                                     'suggestedTags': sorted(suggestedTags) },
@@ -392,3 +395,22 @@ def tags(request):
 #plugins=(deliciousSuggested, traverse, flickrTags, slashdotTags)
 plugins=(deliciousSuggested, flickrTags, slashdotTags)
 
+def bibtex(request, url):
+	ctx = {}
+	obj = getItemByUrl(url)
+
+	ctx["type"] = "MISC"
+	ctx["url"] = obj["url"]
+	base = {"author": "", "title": "", "url": "", "year": "", "notes": ""}
+	base.update(obj)
+	ctx["bibtex"] = """
+@MISC { tagr%(seq)s,
+	author = "%(author)s",
+	title = "%(title)s",
+	howpublished = "\url{%(url)s}",
+	year = "%(year)s",
+	note = "%(notes)s",
+}
+""" % base
+
+	return HttpResponse(json.dumps(ctx))

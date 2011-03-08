@@ -9,7 +9,7 @@
       <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/tagcloud.js"></script>
       <script type="text/javascript" charset="utf-8" src="{%media_url%}/js/timecloud.js"></script>
       <script type="text/javascript">
-         $(document).ready(function() {
+        $(document).ready(function() {
                $("#timecloud").timecloud({"timecloud":{{tagcloud|safe}},
                                           "start": -1,
                                           "sparklineStyle": { type:'line',
@@ -18,7 +18,15 @@
                                                               chartRangeMin: '0',
                                                               width:'300px' },
                                           "urlprefix": '{{baseurl}}{%if tags%}+{%endif%}'});
-               });
+	});
+	function getBibTeX(url) {
+		//$("#bibtexloadbox").show('slow');
+		$.getJSON("{%root_url%}/bibtex/"+url, function(data) {
+			// $("#bibtexloadbox").hide();
+			$("#bibtextext").val(data.bibtex);
+			$("#bibtexbox").show('slow');
+		});
+	}
       </script>
    {%endif%}
 {%endblock%}
@@ -50,6 +58,17 @@
 <span id="total">{{total}}</span></div>
 {% for item in items.object_list %}
 <div class="xfolkentry">
+  <div class="actions">
+	<a onclick="getBibTeX('{{item.url|urlencode}}');">BibTeX</a>
+  {%if user.username == item.user %}
+	<a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a>
+	<a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
+  {%else %}
+	{% if user.is_active %}
+	<a href="{%root_url%}/add/{{item.url|urlencode}}">Purloin</a>
+	{% endif %}
+  {%endif%}
+  </div>
   <div><a class="taggedlink" href="{{item.url}}">{{item.title|safe}}</a></div>
   <div class="description">{{item.notes|safe}}</div>
   <div class="meta">
@@ -62,12 +81,23 @@
         {%endif%}
     {%endfor%}
     </span>
-    ... on {{item.created}}
+
+	<div class="datetime">{{item.created|date:"d/m/Y h:m:s"}}</div>
   </div>
-  {%if user.username == item.user %}
-  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
-  {%endif%}
 </div>
+
+
+<div id="bibtexloadbox" class="dialog">
+Loading...
+</div>
+<div id="bibtexbox" class="dialog">
+	<textarea id="bibtextext" style="width: 100%; min-height: 200px;">
+	
+	</textarea>
+	<a onclick="$('#bibtexbox').hide('slow');">Close</a>
+</div>
+
+
 {%endfor%}
 {% include "paging.html" %}
 {%endblock%}

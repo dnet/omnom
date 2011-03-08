@@ -1,0 +1,57 @@
+<html>
+    <head>
+        <title>Tagr Bookmarks Options</title>
+        <link href="styles.css" rel="stylesheet" type="text/css">
+        <script type="text/javascript" src="jquery-1.3.2.min.js">
+        </script>
+        <script type="text/javascript" src="preferences.js">
+        </script>
+        <script type="text/javascript">
+            var preferences = new Preferences();
+        </script>
+    </head>
+    <body onload="preferences.restoreAll()">
+        <form>
+            <fieldset class="form">
+                <legend>
+                    Chromium Tagr Extension Settings
+                </legend>
+                <ul>
+                    <li>
+                        <label for="userName" class="label">
+                            Tagr account name: 
+                        </label>
+                        <input type="text" class="textbox" name="userName" id="userName" />
+                    </li>
+                    <li>
+                        <label for="server" class="label">
+                            Tagr server: 
+                        </label>
+                        <input type="text" class="textbox" name="server" id="server" />
+                    </li>
+                    <li>
+                        <label for="markPrivate" class="label">
+                            Private bookmarks: 
+                        </label>
+                        <input type="checkbox" class="checkbox" name="markPrivate" id="markPrivate" />
+                    </li>
+		    <li>
+                        <label for="syncWithChromeBookmarks" class="label">
+                            Save to Delicious when page is bookmarked to Google Chrome/Chromium: 
+                        </label>
+                        <input type="checkbox" class="checkbox" name="syncWithChromeBookmarks" id="syncWithChromeBookmarks" />
+                    </li>
+                </ul>
+            </fieldset>
+            <br>
+			<div id="toolbar">
+                <button onclick="preferences.saveAll();">
+                    Save
+                </button>
+                <div id="status">
+                    &nbsp;
+                </div>
+            </div>
+        </form>
+    </body>
+</html>
