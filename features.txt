@@ -5,4 +5,5 @@
 * nice timecloud for navigating tags
 * delicious import
 * automatic tagging based on urls and text fragments
-* export bookmark as bibtex
+* export bookmark as bibtex (smari)
+* chrome support (smari)
