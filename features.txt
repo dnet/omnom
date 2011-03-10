@@ -1,0 +1,8 @@
+* all displays of bookmarks are available as xhtml and xfolkentry microformats.
+* all lists of bookmarks are also available as json and atom - url param: ?format=<json|atom>
+* new bookmarks are automaticaly cleaned from feedburner Urchin Tracking Modul url junk
+* short urls are associated with each personal bookmark.
+* nice timecloud for navigating tags
+* delicious import
+* automatic tagging based on urls and text fragments
+* export bookmark as bibtex
