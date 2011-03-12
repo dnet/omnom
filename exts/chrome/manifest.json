@@ -1,16 +1,22 @@
 {
-	"name": "Tagr",
+	"name": "om.nom",
 	"version": "1.0",
-	"description": "A bookmarking extension.",
+	"description": "A bookmarking extension for om.nom services.",
 	"content_scripts": [ {
 		"js": [ "jquery-1.3.2.min.js", "tagr.js" ],
 		"matches": [ "http://*/*", "https://*/*", "ftp://*/*" ]
 	} ],
 	"background_page": "background.html",
 	"browser_action": {
-		"default_icon": "icon.png",
+		"default_icon": "icons/omnom.png",
 		"popup": "popup.html"
 	},
+	"icons": {
+		"128": "icons/omnom_128x128.png",
+		"32": "icons/omnom_32x32.png",
+		"48": "icons/omnom_48x48.png"
+	},
+
 	"options_page": "options.html",
 	"permissions": [
 		"bookmarks", "tabs"
