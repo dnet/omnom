@@ -294,6 +294,8 @@ def gmscript(request):
     return render_to_response('tagr.user.js',mimetype="application/javascript")
 
 def delete(request,url):
+    if not request.user.is_authenticated():
+        return HttpResponseRedirect("/accounts/login")
     url=fixApacheMadness(url)
     try:
         user=User.objects.get(username=request.user)
