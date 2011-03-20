@@ -18,11 +18,10 @@
         <a rel="tag" href="{{baseurl}}{%if tags%}+{%endif%}{{tag}}">{{tag}}</a>
         {%endif%}
     {%endfor%}
-    </span>
-    ... on {{item.created}}
+    </span> ... on {{item.created}}
   </div>
   {%if user.username == item.user %}
-  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
+  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>{% if item.snapshot %} | <a href="{%root_url%}/s/{{item.snapshot}}>Snapshot</a>{%endif%}
   {%endif%}
 </div>
 {%endblock%}

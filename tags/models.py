@@ -19,8 +19,9 @@ class Bookmark(DjangoDocument):
         'private': bool,
         'title': unicode,
         'notes': unicode,
-	# 'author': unicode,
-	# 'year': unicode,
+        'snapshot': unicode,
+        #'author': unicode,
+        #'year': unicode,
         }
 
     default_values = {

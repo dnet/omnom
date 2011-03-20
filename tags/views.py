@@ -3,9 +3,12 @@ from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.context_processors import csrf
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template import RequestContext
+from django.views.decorators.gzip import gzip_page
+from django.conf import settings
 import conf
 from utils import unescape
 from tags.forms import AddBookmarkForm, ImportDeliciousForm
@@ -15,7 +18,7 @@ from datetime import datetime
 from urlparse import urljoin, urlparse, urlunparse
 from counter import getNextVal
 from baseconv import base62
-import urllib2, re, urllib, json, pymongo
+import urllib2, re, urllib, json, pymongo, hashlib, gzip
 
 from django_mongokit import get_database
 database = get_database()
@@ -88,7 +91,7 @@ def show(request,tags=[],user=None):
             for t in item['tags']:
                 if t in tags: continue
                 timetags[d][t]=timetags[d].get(t,0)+1
-        tagcloud=[(k, sorted(v.items())) for k, v in sorted(timetags.items())]
+        tagcloud=[(k.replace('&','&amp;'), sorted(v.items())) for k, v in sorted(timetags.items())]
 
     res=db.find(query,sort=order)
     total=res.count()
@@ -118,6 +121,7 @@ def show(request,tags=[],user=None):
                       'title': obj['title'],
                       'created': obj['created'],
                       'private': obj['private'],
+                      'snapshot': obj.get('snapshot'),
                       'notes': unescape(obj['notes']),
                       'tags': [unicode(x) for x in obj['tags']]
                       } for obj in res.object_list]
@@ -212,6 +216,14 @@ def add(request,url=None):
         obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
         obj.save()
     else: # create
+        snapshot=form.cleaned_data['page'].encode('utf8')
+        if snapshot:
+            hash=hashlib.sha512(snapshot).hexdigest()
+            fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+            dump=gzip.open(fname,'wb')
+            dump.write(snapshot)
+            dump.close()
+            snapshot=hash
         obj=db.Bookmark({'url': url,
                          'seq': getNextVal('seq'),
                          'user': unicode(request.user),
@@ -220,10 +232,24 @@ def add(request,url=None):
                          'title': sanitizeHtml(form.cleaned_data['title']),
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
+                         'snapshot': unicode(snapshot),
                         })
         obj.save()
-    return HttpResponse("close")
-    #return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+
+    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+
+def getcsrf(request):
+    done=False
+    if request.method == 'GET':
+        form = AddBookmarkForm(request.GET)
+    elif request.method == 'POST':
+        form = AddBookmarkForm(request.POST)
+    else:
+        return HttpResponse("wrong method")
+    try: user=User.objects.get(username=request.user)
+    except ObjectDoesNotExist:
+        return HttpResponseRedirect("/accounts/login")
+    return HttpResponse("%s" % str(csrf(request)['csrf_token']))
 
 slugRe=re.compile(r'^[0-9A-Za-z]+$')
 def getItemByUrl(url):
@@ -249,7 +275,8 @@ def view(request,shurl):
              'created': tuple(item['created'].timetuple()),
              'private': item['private'],
              'notes': unicode(unescape(item['notes'])),
-             'tags': item['tags']
+             'tags': item['tags'],
+             'snapshot': item.get('snapshot')
              }
         return HttpResponse(json.dumps(res),
                             mimetype="application/json")
@@ -414,3 +441,10 @@ def bibtex(request, url):
 """ % base
 
 	return HttpResponse(json.dumps(ctx))
+
+@gzip_page
+def getSnapshot(request, hash):
+    f=gzip.open("%s/snapshots/%s" % (settings.BASE_PATH, hash), 'rb')
+    res=HttpResponse(f.read())
+    f.close()
+    return res

@@ -82,7 +82,7 @@
     {%endfor%}
     </span>
 
-	<div class="datetime">{{item.created|date:"d/m/Y h:m:s"}}</div>
+    <div><span class="datetime">{{item.created|date:"d/m/Y h:m:s"}}</span>{%if item.snapshot %} <a href="{%root_url%}/s/{{item.snapshot}}">snapshot</a>{%endif%}</div>
   </div>
 </div>
 
