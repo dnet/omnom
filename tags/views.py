@@ -91,7 +91,9 @@ def show(request,tags=[],user=None):
             for t in item['tags']:
                 if t in tags: continue
                 timetags[d][t]=timetags[d].get(t,0)+1
-        tagcloud=[(k.replace('&','&amp;'), sorted(v.items())) for k, v in sorted(timetags.items())]
+        tagcloud=[(k.replace('&','&amp;'), sorted(v.items()))
+                  for k, v
+                  in sorted(timetags.items())]
 
     res=db.find(query,sort=order)
     total=res.count()
@@ -129,7 +131,7 @@ def show(request,tags=[],user=None):
                               { 'items': res,
                                 'limit': limit,
                                 'total': total,
-                                'tags': [(tag, "+".join([t for t in tags if not t == tag])if len(tags)>1 else path) for tag in tags] if tags else [],
+                                'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
                                 'tagcloud': json.dumps(tagcloud),
                                 'baseurl': baseurl,
                                 'path': request.path},
@@ -290,7 +292,6 @@ def shurlect(request,shurl):
     return HttpResponseRedirect("%s" % (item['url']))
 
 def gmscript(request):
-    #return HttpResponse(json.dumps(res),mimetype="application/json")
     return render_to_response('tagr.user.js',mimetype="application/javascript")
 
 def delete(request,url):
@@ -300,7 +301,12 @@ def delete(request,url):
     try:
         user=User.objects.get(username=request.user)
         db = get_database()[Bookmark.collection_name]
-        obj=db.remove({'url':url, 'user': unicode(request.user)})
+        obj=db.find_one({'url':url, 'user': unicode(request.user)})
+        hash=obj.get('snapshot','unlink-me-over-and-over-again')
+        fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+        if os.path.exists(fname):
+            os.unlink(fname)
+        db.remove({'url':url, 'user': unicode(request.user)})
     except ObjectDoesNotExist:
         print "meh delete not working. user, url or obj not existing"
     return HttpResponseRedirect('/u/%s/' % request.user)
