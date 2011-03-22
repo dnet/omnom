@@ -19,7 +19,7 @@ class Bookmark(DjangoDocument):
         'private': bool,
         'title': unicode,
         'notes': unicode,
-        'snapshot': unicode,
+        'snapshot': [unicode],
         #'author': unicode,
         #'year': unicode,
         }

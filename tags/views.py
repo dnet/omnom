@@ -18,7 +18,7 @@ from datetime import datetime
 from urlparse import urljoin, urlparse, urlunparse
 from counter import getNextVal
 from baseconv import base62
-import urllib2, re, urllib, json, pymongo, hashlib, gzip
+import urllib2, re, urllib, json, pymongo, hashlib, gzip, os
 
 from django_mongokit import get_database
 database = get_database()
@@ -123,7 +123,7 @@ def show(request,tags=[],user=None):
                       'title': obj['title'],
                       'created': obj['created'],
                       'private': obj['private'],
-                      'snapshot': obj.get('snapshot'),
+                      'snapshot': '' if not obj.get('snapshot') else obj.get('snapshot')[0],
                       'notes': unescape(obj['notes']),
                       'tags': [unicode(x) for x in obj['tags']]
                       } for obj in res.object_list]
@@ -210,22 +210,24 @@ def add(request,url=None):
     except ObjectDoesNotExist:
         obj=None
 
+    snapshot=form.cleaned_data['page'].encode('utf8')
+    if snapshot:
+        hash=hashlib.sha512(snapshot).hexdigest()
+        fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+        dump=gzip.open(fname,'wb')
+        dump.write(snapshot)
+        dump.close()
+        snapshot=hash
     if obj: # edit
         obj=db.Bookmark(obj)
-        obj['private']=form.cleaned_data['private']
-        obj['title']=sanitizeHtml(form.cleaned_data['title'])
-        obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
-        obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
-        obj.save()
+        if form.cleaned_data['private']: obj['private']=form.cleaned_data['private']
+        if form.cleaned_data['title']: obj['title']=sanitizeHtml(form.cleaned_data['title'])
+        if form.cleaned_data['notes']: obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
+        if form.cleaned_data['tags']: obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
+        if 'updated' in obj: del(obj['updated'])
+        if not snapshot in obj: obj['snapshot']=[]
+        if snapshot and snapshot not in obj['snapshot']: obj['snapshot'].append(unicode(snapshot))
     else: # create
-        snapshot=form.cleaned_data['page'].encode('utf8')
-        if snapshot:
-            hash=hashlib.sha512(snapshot).hexdigest()
-            fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
-            dump=gzip.open(fname,'wb')
-            dump.write(snapshot)
-            dump.close()
-            snapshot=hash
         obj=db.Bookmark({'url': url,
                          'seq': getNextVal('seq'),
                          'user': unicode(request.user),
@@ -234,10 +236,9 @@ def add(request,url=None):
                          'title': sanitizeHtml(form.cleaned_data['title']),
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
-                         'snapshot': unicode(snapshot),
+                         'snapshot': [unicode(snapshot)],
                         })
-        obj.save()
-
+    obj.save()
     return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
 
 def getcsrf(request):
@@ -278,11 +279,11 @@ def view(request,shurl):
              'private': item['private'],
              'notes': unicode(unescape(item['notes'])),
              'tags': item['tags'],
-             'snapshot': item.get('snapshot')
              }
         return HttpResponse(json.dumps(res),
                             mimetype="application/json")
     else:
+        item['snapshot'] = '' if not item.get('snapshot') else item.get('snapshot')[0]
         return render_to_response('view.html',
                                   { 'item': item, },
                                   context_instance=RequestContext(request))
@@ -302,10 +303,10 @@ def delete(request,url):
         user=User.objects.get(username=request.user)
         db = get_database()[Bookmark.collection_name]
         obj=db.find_one({'url':url, 'user': unicode(request.user)})
-        hash=obj.get('snapshot','unlink-me-over-and-over-again')
-        fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
-        if os.path.exists(fname):
-            os.unlink(fname)
+        for hash in obj.get('snapshot',[]):
+            fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+            if os.path.exists(fname):
+                os.unlink(fname)
         db.remove({'url':url, 'user': unicode(request.user)})
     except ObjectDoesNotExist:
         print "meh delete not working. user, url or obj not existing"

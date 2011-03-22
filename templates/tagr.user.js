@@ -70,7 +70,6 @@
    function toggleWidget(tagr) {
      if(tagr.style.display != 'block') {
        fetching=0; loaded=false;
-       doSnapshot();
        window.parent.document.getElementById('id_url').value=window.parent.document.location.href;
        window.parent.document.getElementById('id_title').value=window.parent.document.title;
        window.parent.document.getElementById('id_notes').value=getSelected();
@@ -91,6 +90,7 @@
                              onload: updateSuggestedTags
                            });}
        window.addEventListener('submit', interceptor, true);
+       doSnapshot();
      } else {
        tagr.style.display = 'none';
        buildForm(window.parent.document.getElementById('tagr_frame'));
@@ -135,25 +135,19 @@
      store.contentDocument.open();
      store.contentDocument.write(window.document.documentElement.innerHTML);
      store.contentDocument.close();
-     var iterator = store.contentDocument.evaluate("//meta[@http-equiv='Content-Type' and contains(@content, 'charset')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
-	  try {
-	    var thisNode = iterator.iterateNext();
-	    while (thisNode) {
-         thisNode.parentNode.removeChild(thisNode);
-	      thisNode = iterator.iterateNext();
-       }
-	  } catch (e) {
-       //alert(e);
-	  }
-     var meta=store.contentDocument.createElement('meta');
-     meta.setAttribute('http-equiv','content-type');
-     meta.setAttribute('content','text/html; charset=utf-8');
-     store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
 
      // convert images to dataurls
      // background attribs of elems
      dumpImages();
      dumpElementStyles();
+
+     // remove tagr nodes
+     var tmp=store.contentDocument.getElementById("tagr_store");
+     if (tmp) {
+       tmp.parentNode.removeChild(tmp);
+       tmp=store.contentDocument.getElementById("tagr_div");
+       tmp.parentNode.removeChild(tmp);
+     }
 
      // TODO css: content/cursor
      // embed/object?
@@ -181,7 +175,7 @@
         if(elems[i].ownerNode.getAttribute('rel')=='stylesheet') {
            // fetch <link rel='stylesheet' href='<url>'> and inline it
            //alert('fetch '+elems[i].ownerNode.href);
-           fetchSheet(elems[i].ownerNode.href, elems[i]);
+           fetchSheet(elems[i].ownerNode.href, elems[i].media.mediaText || 'all');
         } else {
           // handle <style> elements
           var style=CSSOM.parse(elems[i].ownerNode.innerHTML);
@@ -194,22 +188,23 @@
      }
    }
 
-   function fetchSheet(url, orig, parent) {
+   function fetchSheet(url, media, parent) {
      //alert('fetch '+url);
      updateStatus(1);
      GM_xmlhttpRequest({ method: "get",
        url: url,
        overrideMimeType: 'text/plain; charset=x-user-defined',
-       media: orig.media.mediaText,
+       media: media,
        parent: parent,
        styles: styles,
        onerror: function(e) { updateStatus(-1); },
        onload: function(e) {
          var style=null;
-         try { // probe for security violation error, in case mozilla struck a bug
+         try {
            style=CSSOM.parse(e.responseText);
          }
          catch(e) {
+           alert(this.url+' '+e);
            style=null;
          }
          if(style) {
@@ -229,46 +224,47 @@
 
    function inlineSheet(sheet) {
      //alert('inline '+sheet.cssRules.length+'\n'+sheet.base);
+     var ruleName=null;
      for(var i=0; i < sheet.cssRules.length; i++) {
        if(sheet.cssRules[i].href) {
          //alert('fetch\n'+sheet.cssRules[i].href);
-         fetchSheet(toAbsURI(sheet.cssRules[i].href,sheet.base), sheet, sheet.cssRules[i]);
+         fetchSheet(toAbsURI(sheet.cssRules[i].href,sheet.base), sheet.media.mediaText || 'all', sheet.cssRules[i]);
+         continue;
        }
-       if(sheet.cssRules[i].style) {
-         var ruleName=null;
-         if('background' in sheet.cssRules[i].style) {
-            ruleName='background';
-         } else if ('background-image' in sheet.cssRules[i].style ) {
-            ruleName='background-image';
-         }
-         if(ruleName) {
-            var bgImgRule=sheet.cssRules[i].style[ruleName].match(/(.*url\()['"]?(.*[^'"])['"]?(\).*)/i);
-            if(!bgImgRule) continue;
-            // inline background-image urls
-            var url=bgImgRule[2];
-            // skip already inlined images
-            if(url.slice(0,5)=='data:') { continue; }
-            updateStatus(1);
-            url=toAbsURI(url,sheet.base);
-            GM_xmlhttpRequest({ method: "get",
-                                url: url,
-                                overrideMimeType: 'text/plain; charset=x-user-defined',
-                                item: sheet.cssRules[i].style,
-                                ruleName: ruleName,
-                                rule: bgImgRule,
-                                onerror: function(e) { updateStatus(-1); },
-                                onload: function(e) {
-                                  var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
-                                  var matched = e.responseHeaders.match(re);
-                                  if(matched[1].slice(0,6)=='image/') {
-                                    var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
-                                    //console.log(this.url);
-                                    this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
-                                    //console.log(this.url);
-                                  }
-                                  updateStatus(-1);
-                                }});
-         }
+       if(!sheet.cssRules[i].style) continue;
+       for(ruleName in {'background':null, 'background-image':null}) {
+         if(!sheet.cssRules[i].style[ruleName]) continue;
+         var bgImgRule=sheet.cssRules[i].style[ruleName].match(/(.*url\()['"]?(.*[^'")])['"]?(\).*)/i);
+         if(!bgImgRule) continue;
+         // inline background-image urls
+         var url=bgImgRule[2];
+         // skip already inlined images
+         if(url.slice(0,5)=='data:') { continue; }
+         updateStatus(1);
+         url=toAbsURI(url,sheet.base);
+         GM_xmlhttpRequest({ method: "get",
+                             url: url,
+                             overrideMimeType: 'text/plain; charset=x-user-defined',
+                             item: sheet.cssRules[i].style,
+                             ruleName: ruleName,
+                             rule: bgImgRule,
+                             onerror: function(e) { updateStatus(-1); },
+                             onload: function(e) {
+                               if(e.status!="200") {
+                                 alert("snapshot error: "+this.url);
+                                 updateStatus(-1);
+                                 return;
+                               }
+                               var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
+                               var matched = e.responseHeaders.match(re);
+                               if(matched[1].slice(0,6)=='image/') {
+                                 var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
+                                 //console.log(this.url);
+                                 this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
+                                 //console.log(this.url);
+                               }
+                               updateStatus(-1);
+                             }});
        }
      }
    }
@@ -310,13 +306,16 @@
                              rule: bgImgRule,
                              onerror: function(e) { updateStatus(-1); },
                              onload: function(e) {
+                               if(e.status!="200") {
+                                 alert("snapshot error: "+this.url);
+                                 updateStatus(-1);
+                                 return;
+                               }
                                var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
                                var matched = e.responseHeaders.match(re);
                                if(matched[1].slice(0,6)=='image/') {
                                  var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
-                                 //console.log(this.url);
                                  this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
-                                 //console.log(this.url);
                                }
                                updateStatus(-1);
                              }});
@@ -372,6 +371,11 @@
                          target: target || 'src',
                          onerror: function(e) { updateStatus(-1); },
                          onload: function(e) {
+                           if(e.status!="200") {
+                             alert("snapshot error: "+this.url);
+                             updateStatus(-1);
+                             return;
+                           }
                            var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
                            var matched = e.responseHeaders.match(re);
                            var dataurl='data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
@@ -409,22 +413,42 @@
        var notes=encodeURIComponent(window.parent.document.getElementById('id_notes').value);
        var tags=encodeURIComponent(window.parent.document.getElementById('id_tags').value);
        var priv=encodeURIComponent(window.parent.document.getElementById('id_private').value);
-       // remove tagr nodes
-       var tmp=store.contentDocument.getElementById("tagr_store");
-       if (tmp) {
-         tmp.parentNode.removeChild(tmp);
-         tmp=store.contentDocument.getElementById("tagr_div");
-         tmp.parentNode.removeChild(tmp);
-       }
-       var snapshot=encodeURIComponent('<!DOCTYPE '+window.document.doctype.name+
-                                       '>\n<html'+
+       // update content/charset
+       var iterator = store.contentDocument.evaluate("//meta[@http-equiv='Content-Type' and contains(@content, 'charset')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
+	    try {
+	      var thisNode = iterator.iterateNext();
+	      while (thisNode) {
+           thisNode.parentNode.removeChild(thisNode);
+	        thisNode = iterator.iterateNext();
+         }
+	    } catch (e) {
+         //alert(e);
+	    }
+       var meta=store.contentDocument.createElement('meta');
+       meta.setAttribute('http-equiv','content-type');
+       meta.setAttribute('content','text/html; charset=utf-8');
+       store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+
+       meta=store.contentDocument.createElement('meta');
+       meta.setAttribute('name','generator');
+       meta.setAttribute('content','omnom userscript snapshooter');
+       meta.setAttribute('timestamp',new Date().toISOString());
+       meta.setAttribute('ua', window.navigator.userAgent);
+       store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+       var doctype;
+       if(window.document.doctype) {
+         doctype='<!DOCTYPE '+window.document.doctype.name+
                                        (window.document.doctype.publicId?
                                         ' PUBLIC "'+window.document.doctype.publicId+'"' :
                                         '')+
+                                       '>\n<html'+
                                        (window.document.doctype.systemId?
                                         ' "'+ window.document.doctype.systemId:
-                                        '') +'">\n'+
-                                       store.contentDocument.documentElement.innerHTML+'\n</html>');
+                                        '') +'">\n';
+       } else {
+         doctype="<html>\n";
+       }
+       var snapshot=encodeURIComponent(doctype+ store.contentDocument.documentElement.innerHTML+'\n</html>');
 
        // submit the form!
        GM_xmlhttpRequest({ method: 'POST',
@@ -710,21 +734,16 @@ CSSOM.CSSStyleDeclaration.prototype = {
 	 */
 	setProperty: function(name, value, priority) {
 		if (this[name]) {
-			// Property already exist. Ignore it.
-         return;
-			// Property already exist. Overwrite it.
-			var index = Array.prototype.indexOf.call(this, name);
-			if (index < 0) {
-				this[this.length] = name;
-				this.length++;
-			}
+			// Property already exist. Append it only it.
+		   this[this.length] = [name, value, priority];
+		   this.length++;
 		} else {
 			// New property.
 			this[this.length] = name;
 			this.length++;
+		   this[name] = value;
+         this._importants[name] = priority;
 		}
-		this[name] = value;
-		this._importants[name] = priority;
 	},
 	/**
 	 *
@@ -774,12 +793,22 @@ CSSOM.CSSStyleDeclaration.prototype = {
 	get cssText(){
 		var properties = [];
 		for (var i=0, length=this.length; i < length; ++i) {
-			var name = this[i];
-			var value = this.getPropertyValue(name);
-			var priority = this.getPropertyPriority(name);
-			if (priority) {
-				priority = " !" + priority;
-			}
+         var name, value, priority;
+         if (this[i] instanceof Array) {
+			  name = this[i][0];
+			  value = this[i][1];
+			  priority = this[i][2];
+			  if (priority) {
+				 priority = " !" + priority;
+           }
+         } else {
+			  name = this[i];
+			  value = this.getPropertyValue(name);
+			  priority = this.getPropertyPriority(name);
+			  if (priority) {
+				 priority = " !" + priority;
+			  }
+         }
 			properties[i] = name + ": " + value + priority + ";";
 		}
 		return properties.join(" ");
@@ -1235,7 +1264,7 @@ CSSOM.parse = function parse(token, options) {
 	// @type CSSStyleSheet|CSSMediaRule
 	var currentScope = styleSheet;
 
-	var selector, name, value, priority="", styleRule, mediaRule, importRule;
+	var selector, name, value, priority="", styleRule, mediaRule, importRule, ignore=0;
 	for (var character; character = token.charAt(i); i++) {
 		switch (character) {
 		case " ":
@@ -1364,7 +1393,7 @@ CSSOM.parse = function parse(token, options) {
 		case ";":
 			switch (state) {
 				case "value":
-					styleRule.style.setProperty(name, buffer.trim(), priority);
+					if(!ignore) styleRule.style.setProperty(name, buffer.trim(), priority);
 					priority = "";
 					buffer = "";
 					state = "before-name";
@@ -1388,7 +1417,7 @@ CSSOM.parse = function parse(token, options) {
 		case "}":
 			switch (state) {
 				case "value":
-					styleRule.style.setProperty(name, buffer.trim(), priority);
+					if(!ignore) styleRule.style.setProperty(name, buffer.trim(), priority);
 					priority = "";
 				case "before-name":
 				case "name":
@@ -1401,7 +1430,8 @@ CSSOM.parse = function parse(token, options) {
 					// End of media rule.
 					// Nesting rules aren't supported yet
 					if (!mediaRule) {
-						throw "unexpected }";
+                  break;
+						throw "unexpected } at "+i;
 					}
 					mediaRule.__ends = i + 1;
 					styleSheet.cssRules.push(mediaRule);
@@ -1419,6 +1449,12 @@ CSSOM.parse = function parse(token, options) {
 					styleRule.__starts = i;
 					break;
 				case "before-name":
+		         if (character=='[' && !ignore) {
+                 ignore=1;
+                 break;};
+		         if (character==']' && ignore) {
+                 ignore=0;
+                 break;};
 					state = "name";
 					break;
 				case "before-value":
