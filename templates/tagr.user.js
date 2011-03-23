@@ -175,7 +175,9 @@
         if(elems[i].ownerNode.getAttribute('rel')=='stylesheet') {
            // fetch <link rel='stylesheet' href='<url>'> and inline it
            //alert('fetch '+elems[i].ownerNode.href);
-           fetchSheet(elems[i].ownerNode.href, elems[i].media.mediaText || 'all');
+           var j=styles.length;
+           styles.push(''); // placeholder for async results
+           fetchSheet(elems[i].ownerNode.href, elems[i].media.mediaText || 'all', null, j);
         } else {
           // handle <style> elements
           var style=CSSOM.parse(elems[i].ownerNode.innerHTML);
@@ -188,7 +190,7 @@
      }
    }
 
-   function fetchSheet(url, media, parent) {
+   function fetchSheet(url, media, parent, stylesidx) {
      //alert('fetch '+url);
      updateStatus(1);
      GM_xmlhttpRequest({ method: "get",
@@ -197,6 +199,7 @@
        media: media,
        parent: parent,
        styles: styles,
+       idx: stylesidx,
        onerror: function(e) { updateStatus(-1); },
        onload: function(e) {
          var style=null;
@@ -212,7 +215,8 @@
            style.media=this.media;
            style.base=this.url;
            if(!this.parent) {
-             this.styles.push(style);
+             //this.styles.push(style);
+             this.styles[this.idx]=style;
            } else {
              this.parent.styleSheet=style;
            };
@@ -251,7 +255,7 @@
                              onerror: function(e) { updateStatus(-1); },
                              onload: function(e) {
                                if(e.status!="200") {
-                                 alert("snapshot error: "+this.url);
+                                 //alert("snapshot error: "+this.url);
                                  updateStatus(-1);
                                  return;
                                }
@@ -307,7 +311,7 @@
                              onerror: function(e) { updateStatus(-1); },
                              onload: function(e) {
                                if(e.status!="200") {
-                                 alert("snapshot error: "+this.url);
+                                 //alert("snapshot error: "+this.url);
                                  updateStatus(-1);
                                  return;
                                }
@@ -372,7 +376,7 @@
                          onerror: function(e) { updateStatus(-1); },
                          onload: function(e) {
                            if(e.status!="200") {
-                             alert("snapshot error: "+this.url);
+                             //alert("snapshot error: "+this.url);
                              updateStatus(-1);
                              return;
                            }
@@ -441,10 +445,9 @@
                                        (window.document.doctype.publicId?
                                         ' PUBLIC "'+window.document.doctype.publicId+'"' :
                                         '')+
-                                       '>\n<html'+
                                        (window.document.doctype.systemId?
-                                        ' "'+ window.document.doctype.systemId:
-                                        '') +'">\n';
+                                        ' "'+ window.document.doctype.systemId+'"':
+                                        '') +'">\n<html>\n';
        } else {
          doctype="<html>\n";
        }
@@ -1442,6 +1445,10 @@ CSSOM.parse = function parse(token, options) {
 			state = "before-selector";
 			break;
 		default:
+         if(token.charCodeAt(i)>127) {
+            // ignore non-ascii chars
+            break;
+         }
 			switch (state) {
 				case "before-selector":
 					state = "selector";
