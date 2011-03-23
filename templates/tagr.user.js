@@ -31,7 +31,7 @@
 
    function keyHandler(e) {
      if (e.keyCode == 68 && !e.shiftKey && e.ctrlKey && e.altKey && !e.metaKey) {
-       var tagr=window.parent.document.getElementById('tagr_div');
+      var tagr=window.parent.document.getElementById('tagr_div');
        if(!tagr) {
          initWidget();
        } else {
@@ -128,14 +128,46 @@
      }
    }
 
-   function doSnapshot() {
-     var status = window.parent.document.getElementById( "tagr_snapshotStatus" );
-     status.innerHTML="Snapshotting...";
+   function cloneDoc() {
      store.contentDocument.innerHTML='';
      store.contentDocument.open();
      store.contentDocument.write(window.document.documentElement.innerHTML);
      store.contentDocument.close();
+     // update content/charset
+     var iterator = store.contentDocument.evaluate("//meta[@http-equiv='Content-Type' and contains(@content, 'charset')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
+     try {
+        var thisNode = iterator.iterateNext();
+        while (thisNode) {
+           thisNode.parentNode.removeChild(thisNode);
+           thisNode = iterator.iterateNext();
+        }
+     } catch (e) {
+        //alert(e);
+     }
+     var meta=store.contentDocument.createElement('meta');
+     meta.setAttribute('http-equiv','content-type');
+     meta.setAttribute('content','text/html; charset=utf-8');
+     store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
 
+     meta=store.contentDocument.createElement('meta');
+     meta.setAttribute('name','generator');
+     meta.setAttribute('content','omnom userscript snapshooter');
+     meta.setAttribute('timestamp',new Date().toISOString());
+     meta.setAttribute('ua', window.navigator.userAgent);
+     store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+
+     var tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_styles");
+     tmp.parentNode.removeChild(tmp);
+     tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_store");
+     tmp.parentNode.removeChild(tmp);
+     tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_div");
+     tmp.parentNode.removeChild(tmp);
+   }
+
+   function doSnapshot() {
+     var status = window.parent.document.getElementById( "tagr_snapshotStatus" );
+     status.innerHTML="Snapshotting...";
+     cloneDoc();
      // convert images to dataurls
      // background attribs of elems
      dumpImages();
@@ -236,7 +268,8 @@
          continue;
        }
        if(!sheet.cssRules[i].style) continue;
-       for(ruleName in {'background':null, 'background-image':null}) {
+       // also handle list-style-image
+       for(ruleName in {'background':null, 'background-image':null, 'list-style-image': null, 'list-style': null}) {
          if(!sheet.cssRules[i].style[ruleName]) continue;
          var bgImgRule=sheet.cssRules[i].style[ruleName].match(/(.*url\()['"]?(.*[^'")])['"]?(\).*)/i);
          if(!bgImgRule) continue;
@@ -286,48 +319,47 @@
    }
 
    function dumpStyleImage(thisNode) {
-     if('background' in thisNode.style|| 'background-image' in thisNode) {
-       var ruleName=null;
-       if('background' in thisNode.style) {
-         ruleName='background';
-       } else if ('background-image' in thisNode.style ) {
-         ruleName='background-image';
-       }
-       if(ruleName) {
-         var bgImgRule=thisNode.style[ruleName].match(/(.*url\()['"]?(.*[^'"])['"]?(\).*)/i);
-         if(!bgImgRule) return;
-         // inline background-image urls
-         var url=bgImgRule[2];
-         // skip already inlined images
-         if(url.slice(0,5)=='data:') { return; }
-         updateStatus(1);
-         url=toAbsURI(url);
-         GM_xmlhttpRequest({ method: "get",
-                             url: url,
-                             overrideMimeType: 'text/plain; charset=x-user-defined',
-                             item: thisNode.style,
-                             ruleName: ruleName,
-                             rule: bgImgRule,
-                             onerror: function(e) { updateStatus(-1); },
-                             onload: function(e) {
-                               if(e.status!="200") {
-                                 //alert("snapshot error: "+this.url);
+     // todo iterate over this list, currently only one is processed, if there are more viable candidates for snapshotting they're ignored
+     var rules=['background', 'background-image', 'list-style-image'];
+     var ruleName=null;
+     for(i in rules) {
+        ruleName=rules[i];
+        if(ruleName && ruleName in thisNode.style) {
+           var bgImgRule=thisNode.style[ruleName].match(/(.*url\()['"]?(.*[^'"])['"]?(\).*)/i);
+           if(!bgImgRule) return;
+           // inline background-image urls
+           var url=bgImgRule[2];
+           // skip already inlined images
+           if(url.slice(0,5)=='data:') { return; }
+           updateStatus(1);
+           url=toAbsURI(url);
+           GM_xmlhttpRequest({ method: "get",
+                               url: url,
+                               overrideMimeType: 'text/plain; charset=x-user-defined',
+                               item: thisNode.style,
+                               ruleName: ruleName,
+                               rule: bgImgRule,
+                               onerror: function(e) { updateStatus(-1); },
+                               onload: function(e) {
+                                 if(e.status!="200") {
+                                   //alert("snapshot error: "+this.url);
+                                   updateStatus(-1);
+                                   return;
+                                 }
+                                 var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
+                                 var matched = e.responseHeaders.match(re);
+                                 if(matched[1].slice(0,6)=='image/') {
+                                   var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
+                                   this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
+                                 }
                                  updateStatus(-1);
-                                 return;
-                               }
-                               var re = new RegExp("^Content-Type:\\s+(.*?)\\s*$", "m");
-                               var matched = e.responseHeaders.match(re);
-                               if(matched[1].slice(0,6)=='image/') {
-                                 var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
-                                 this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
-                               }
-                               updateStatus(-1);
-                             }});
-         }
+                               }});
+        }
      }
    }
 
    function dumpElementStyles() {
+     // furthermore handle <a style="background-image: url(http://.../i.png);" href="/" title="Visit the main page"></a>
      var iterator = store.contentDocument.evaluate("//*[contains(@style, 'url(')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
 
 	  try {
@@ -362,8 +394,6 @@
        if(img.getAttribute('rel').toLowerCase() != 'shortcut icon' || !img.href || img.href.slice(0,5)=='data:') { continue; }
        fetchImage(img,'href');
      }
-     // TODO
-     // furthermore handle <a style="background-image: url(http://.../i.png);" href="/" title="Visit the main page"></a>
    }
 
    function fetchImage(img, target) {
@@ -417,29 +447,11 @@
        var notes=encodeURIComponent(window.parent.document.getElementById('id_notes').value);
        var tags=encodeURIComponent(window.parent.document.getElementById('id_tags').value);
        var priv=encodeURIComponent(window.parent.document.getElementById('id_private').value);
-       // update content/charset
-       var iterator = store.contentDocument.evaluate("//meta[@http-equiv='Content-Type' and contains(@content, 'charset')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
-	    try {
-	      var thisNode = iterator.iterateNext();
-	      while (thisNode) {
-           thisNode.parentNode.removeChild(thisNode);
-	        thisNode = iterator.iterateNext();
-         }
-	    } catch (e) {
-         //alert(e);
-	    }
-       var meta=store.contentDocument.createElement('meta');
-       meta.setAttribute('http-equiv','content-type');
-       meta.setAttribute('content','text/html; charset=utf-8');
-       store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
-
-       meta=store.contentDocument.createElement('meta');
-       meta.setAttribute('name','generator');
-       meta.setAttribute('content','omnom userscript snapshooter');
-       meta.setAttribute('timestamp',new Date().toISOString());
-       meta.setAttribute('ua', window.navigator.userAgent);
-       store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
-       var doctype;
+       var nsl="";
+       for(var i=0, ns=window.document.documentElement.attributes; i<ns.length; i++) {
+          nsl+=ns.item(i).nodeName+'="'+ns.item(i).nodeValue+'" ';
+       }
+       var doctype='';
        if(window.document.doctype) {
          doctype='<!DOCTYPE '+window.document.doctype.name+
                                        (window.document.doctype.publicId?
@@ -447,11 +459,9 @@
                                         '')+
                                        (window.document.doctype.systemId?
                                         ' "'+ window.document.doctype.systemId+'"':
-                                        '') +'">\n<html>\n';
-       } else {
-         doctype="<html>\n";
+                                        '') +'">\n';
        }
-       var snapshot=encodeURIComponent(doctype+ store.contentDocument.documentElement.innerHTML+'\n</html>');
+       var snapshot=encodeURIComponent(doctype+"<html "+nsl+">\n"+store.contentDocument.documentElement.innerHTML+'\n</html>');
 
        // submit the form!
        GM_xmlhttpRequest({ method: 'POST',
@@ -504,7 +514,7 @@
    }
 
    function buildForm(tagrframe) {
-     tagrframe.innerHTML=('<style> \
+     tagrframe.innerHTML=('<style id="tagr_styles"> \
                           #tagr_frame { border: 0; padding: 0;border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 10px; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
                           #tagr_div * { font-size: 12px; color: #666; font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; } \
                           #tagr_frame [rel=tag] { background-color: #ddd; margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; } \
@@ -1282,10 +1292,16 @@ CSSOM.parse = function parse(token, options) {
 		// String
 		case '"':
 			j = i + 1;
-			index = token.indexOf('"', j) + 1;
-			if (!index) {
-				throw '" is missing';
-			}
+         index = token.indexOf('"', j) + 1;
+         while(true) {
+			   if (!index) {
+			   	throw '" is missing';
+			   }
+            if (token.charAt(index-2) != '\\') {
+               break;
+            }
+            index = token.indexOf('"', index) + 1;
+         }
 			buffer += token.slice(i, index);
 			i = index - 1;
 			switch (state) {
@@ -1300,9 +1316,15 @@ CSSOM.parse = function parse(token, options) {
 		case "'":
 			j = i + 1;
 			index = token.indexOf("'", j) + 1;
-			if (!index) {
-				throw "' is missing";
-			}
+         while(true) {
+			   if (!index) {
+			   	throw "' is missing";
+			   }
+            if (token.charAt(index-2) != '\\') {
+               break;
+            }
+            index = token.indexOf("'", index) + 1;
+         }
 			buffer += token.slice(i, index);
 			i = index - 1;
 			switch (state) {
