@@ -473,7 +473,7 @@
                                         '')+
                                        (window.document.doctype.systemId?
                                         ' "'+ window.document.doctype.systemId+'"':
-                                        '') +'">\n';
+                                        '') +'>\n';
        }
        var snapshot=encodeURIComponent(doctype+"<html "+nsl+">\n"+store.contentDocument.documentElement.innerHTML+'\n</html>');
 
