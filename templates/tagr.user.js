@@ -155,13 +155,16 @@
      meta.setAttribute('timestamp',new Date().toISOString());
      meta.setAttribute('ua', window.navigator.userAgent);
      store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+     delNode("tagr_store");
+     delNode("tagr_div");
+     delNode("tagr_styles");
+   }
 
-     var tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_styles");
-     tmp.parentNode.removeChild(tmp);
-     tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_store");
-     tmp.parentNode.removeChild(tmp);
-     tmp=store.wrappedJSObject.contentDocument.getElementById("tagr_div");
-     tmp.parentNode.removeChild(tmp);
+   function delNode(id) {
+     var tmp=store.contentDocument.getElementById(id);
+     if (tmp) {
+       tmp.parentNode.removeChild(tmp);
+     }
    }
 
    function doSnapshot() {
@@ -172,14 +175,6 @@
      // background attribs of elems
      dumpImages();
      dumpElementStyles();
-
-     // remove tagr nodes
-     var tmp=store.contentDocument.getElementById("tagr_store");
-     if (tmp) {
-       tmp.parentNode.removeChild(tmp);
-       tmp=store.contentDocument.getElementById("tagr_div");
-       tmp.parentNode.removeChild(tmp);
-     }
 
      // TODO css: content/cursor
      // embed/object?
@@ -204,7 +199,7 @@
      elems = window.document.styleSheets;
      for(var i=0; i < elems.length; i++) {
         updateStatus(1);
-        if(elems[i].ownerNode.getAttribute('rel')=='stylesheet') {
+        if((elems[i].ownerNode.getAttribute('rel') || '').toLowerCase()=='stylesheet') {
            // fetch <link rel='stylesheet' href='<url>'> and inline it
            //alert('fetch '+elems[i].ownerNode.href);
            var j=styles.length;
@@ -239,7 +234,7 @@
            style=CSSOM.parse(e.responseText);
          }
          catch(e) {
-           alert(this.url+' '+e);
+           alert('alert '+this.url+' '+e);
            style=null;
          }
          if(style) {
@@ -247,8 +242,14 @@
            style.media=this.media;
            style.base=this.url;
            if(!this.parent) {
-             //this.styles.push(style);
-             this.styles[this.idx]=style;
+              //alert(this.idx);
+              if(this.idx>-1) {
+                 //alert(this.styles+'\n'+this.idx+'\n'+this.styles[this.idx]);
+                 this.styles[this.idx]=style;
+              } else {
+                 this.styles.push(style);
+                 //alert('pushed '+this.url);
+              }
            } else {
              this.parent.styleSheet=style;
            };
@@ -296,9 +297,7 @@
                                var matched = e.responseHeaders.match(re);
                                if(matched[1].slice(0,6)=='image/') {
                                  var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
-                                 //console.log(this.url);
                                  this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
-                                 //console.log(this.url);
                                }
                                updateStatus(-1);
                              }});
@@ -427,13 +426,18 @@
      } else {
        status.innerHTML="Snapshot done.";
        // dump cssom styles to style elements
+       exportCSS();
+     }
+   }
+
+   function exportCSS() {
        for(var i=0; i < styles.length; i++) {
          var style = store.contentDocument.createElement("style");
          style.media=styles[i].media || 'all';
+         //alert(styles[i].base+'\n'+styles[i]);
          style.innerHTML=dumpCSS(styles[i]);
          store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(style);
        }
-     }
    }
 
    function interceptor(e) {
@@ -447,6 +451,9 @@
        var notes=encodeURIComponent(window.parent.document.getElementById('id_notes').value);
        var tags=encodeURIComponent(window.parent.document.getElementById('id_tags').value);
        var priv=encodeURIComponent(window.parent.document.getElementById('id_private').value);
+       if(fetching) { // we don't wait for long timeouts.
+          exportCSS();
+       }
        var nsl="";
        for(var i=0, ns=window.document.documentElement.attributes; i<ns.length; i++) {
           nsl+=ns.item(i).nodeName+'="'+ns.item(i).nodeValue+'" ';
