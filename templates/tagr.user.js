@@ -155,9 +155,6 @@
      meta.setAttribute('timestamp',new Date().toISOString());
      meta.setAttribute('ua', window.navigator.userAgent);
      store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
-     delNode("tagr_store");
-     delNode("tagr_div");
-     delNode("tagr_styles");
    }
 
    function delNode(id) {
@@ -193,24 +190,28 @@
 
    function inlineCSS() {
      // delete copied over css
-     var elems = store.contentDocument.styleSheets;
-     while(elems.length) elems[0].ownerNode.parentNode.removeChild(elems[0].ownerNode);
+     //var elems = store.contentDocument.styleSheets;
+     //while(elems.length) elems[0].ownerNode.parentNode.removeChild(elems[0].ownerNode);
      // parse and convert from original css
-     elems = window.document.styleSheets;
+     var elems = window.document.styleSheets;
+     var storelems = store.contentDocument.styleSheets;
+     if(elems.length!=storelems.length) {
+        alert("huh? bug bounty, send me the current url pls.\norig and store have differing stylesheet arrays "+elems.length+" "+storelems.length);
+     }
      for(var i=0; i < elems.length; i++) {
         updateStatus(1);
         if((elems[i].ownerNode.getAttribute('rel') || '').toLowerCase()=='stylesheet') {
            // fetch <link rel='stylesheet' href='<url>'> and inline it
            //alert('fetch '+elems[i].ownerNode.href);
            var j=styles.length;
-           styles.push(''); // placeholder for async results
+           styles.push(['',storelems[i].ownerNode]); // placeholder for async results
            fetchSheet(elems[i].ownerNode.href, elems[i].media.mediaText || 'all', null, j);
         } else {
           // handle <style> elements
           var style=CSSOM.parse(elems[i].ownerNode.innerHTML);
           style.media=elems[i].media.mediaText;
           style.base=window.document.baseURI;
-          styles.push(style);
+          styles.push([style,storelems[i].ownerNode]);
           inlineSheet(style);
         }
        updateStatus(-1);
@@ -234,7 +235,7 @@
            style=CSSOM.parse(e.responseText);
          }
          catch(e) {
-           alert('alert '+this.url+' '+e);
+           alert('cssom parse error '+this.url+' '+e+'\nbug bounty, pls send me this url');
            style=null;
          }
          if(style) {
@@ -245,10 +246,10 @@
               //alert(this.idx);
               if(this.idx>-1) {
                  //alert(this.styles+'\n'+this.idx+'\n'+this.styles[this.idx]);
-                 this.styles[this.idx]=style;
+                 this.styles[this.idx][0]=style;
               } else {
-                 this.styles.push(style);
-                 //alert('pushed '+this.url);
+                 alert('dangling stylesheet '+this.url+'\nbug bounty, pls send me this url');
+                 this.styles.push([style,null]);
               }
            } else {
              this.parent.styleSheet=style;
@@ -262,6 +263,7 @@
    function inlineSheet(sheet) {
      //alert('inline '+sheet.cssRules.length+'\n'+sheet.base);
      var ruleName=null;
+     if(!sheet.cssRules) { alert('no css rulez\n'+sheet+'\nbug bounty, pls send me this url'); return; }
      for(var i=0; i < sheet.cssRules.length; i++) {
        if(sheet.cssRules[i].href) {
          //alert('fetch\n'+sheet.cssRules[i].href);
@@ -433,10 +435,11 @@
    function exportCSS() {
        for(var i=0; i < styles.length; i++) {
          var style = store.contentDocument.createElement("style");
-         style.media=styles[i].media || 'all';
+         style.media=styles[i][0].media || 'all';
          //alert(styles[i].base+'\n'+styles[i]);
-         style.innerHTML=dumpCSS(styles[i]);
-         store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(style);
+         style.innerHTML=dumpCSS(styles[i][0]);
+         //store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(style);
+         styles[i][1].parentNode.replaceChild(style,styles[i][1]);
        }
    }
 
@@ -451,6 +454,10 @@
        var notes=encodeURIComponent(window.parent.document.getElementById('id_notes').value);
        var tags=encodeURIComponent(window.parent.document.getElementById('id_tags').value);
        var priv=encodeURIComponent(window.parent.document.getElementById('id_private').value);
+       // FIXME somehow doesn't delete tagr_store iframe
+       delNode("tagr_store");
+       delNode("tagr_div");
+       delNode("tagr_styles");
        if(fetching) { // we don't wait for long timeouts.
           exportCSS();
        }
