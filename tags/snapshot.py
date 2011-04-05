@@ -23,8 +23,7 @@ def snapshot(url):
     if i>=0:
         t=t[:i]
     if not t in ['text/xml',
-                 'text/html',
-                 'text/plain']:
+                 'text/html']:
         return "sorry wrong type (%s)! %s" % (t,url)
     try:
         l=int(response.info().get('Content-Length','0'))

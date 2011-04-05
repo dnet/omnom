@@ -7,7 +7,7 @@
 {%block content%}
 <div class="xfolkentry">
   <div><a class="taggedlink" href="{{item.url}}">{{item.title|safe}}</a></div>
-  <div>"Shortish URL" <input type="text" value="{%root_url%}/r/{{item.shurl}}"></input></div>
+  <div>"Shortish URL" <input type="text" width="30" value="{%root_url%}/r/{{item.shurl}}"></input></div>
   <div class="description">{{item.notes|safe}}</div>
   <div class="meta">
     <span class="tagcontainer">
@@ -18,11 +18,10 @@
         <a rel="tag" href="{{baseurl}}{%if tags%}+{%endif%}{{tag}}">{{tag}}</a>
         {%endif%}
     {%endfor%}
-    </span>
-    ... on {{item.created}}
+    </span> ... on {{item.created}}
   </div>
   {%if user.username == item.user %}
-  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
+  <a href="{%root_url%}/edit/{{item.url|urlencode}}">Edit</a> | <a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>{% if item.snapshot %} | <a href="{%root_url%}/s/{{item.snapshot}}>Snapshot</a>{%endif%}
   {%endif%}
 </div>
 {%endblock%}

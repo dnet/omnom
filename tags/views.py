@@ -3,9 +3,12 @@ from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.context_processors import csrf
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template import RequestContext
+from django.views.decorators.gzip import gzip_page
+from django.conf import settings
 import conf
 from utils import unescape
 from tags.forms import AddBookmarkForm, ImportDeliciousForm
@@ -15,7 +18,7 @@ from datetime import datetime
 from urlparse import urljoin, urlparse, urlunparse
 from counter import getNextVal
 from baseconv import base62
-import urllib2, re, urllib, json, pymongo
+import urllib2, re, urllib, json, pymongo, hashlib, gzip, os
 
 from django_mongokit import get_database
 database = get_database()
@@ -88,7 +91,9 @@ def show(request,tags=[],user=None):
             for t in item['tags']:
                 if t in tags: continue
                 timetags[d][t]=timetags[d].get(t,0)+1
-        tagcloud=[(k, sorted(v.items())) for k, v in sorted(timetags.items())]
+        tagcloud=[(k.replace('&','&amp;'), sorted(v.items()))
+                  for k, v
+                  in sorted(timetags.items())]
 
     res=db.find(query,sort=order)
     total=res.count()
@@ -118,6 +123,7 @@ def show(request,tags=[],user=None):
                       'title': obj['title'],
                       'created': obj['created'],
                       'private': obj['private'],
+                      'snapshot': '' if not obj.get('snapshot') else obj.get('snapshot')[0],
                       'notes': unescape(obj['notes']),
                       'tags': [unicode(x) for x in obj['tags']]
                       } for obj in res.object_list]
@@ -125,7 +131,7 @@ def show(request,tags=[],user=None):
                               { 'items': res,
                                 'limit': limit,
                                 'total': total,
-                                'tags': [(tag, "+".join([t for t in tags if not t == tag])if len(tags)>1 else path) for tag in tags] if tags else [],
+                                'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
                                 'tagcloud': json.dumps(tagcloud),
                                 'baseurl': baseurl,
                                 'path': request.path},
@@ -204,13 +210,23 @@ def add(request,url=None):
     except ObjectDoesNotExist:
         obj=None
 
+    snapshot=form.cleaned_data['page'].encode('utf8')
+    if snapshot:
+        hash=hashlib.sha512(snapshot).hexdigest()
+        fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+        dump=gzip.open(fname,'wb')
+        dump.write(snapshot)
+        dump.close()
+        snapshot=hash
     if obj: # edit
         obj=db.Bookmark(obj)
-        obj['private']=form.cleaned_data['private']
-        obj['title']=sanitizeHtml(form.cleaned_data['title'])
-        obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
-        obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
-        obj.save()
+        if form.cleaned_data['private']: obj['private']=form.cleaned_data['private']
+        if form.cleaned_data['title']: obj['title']=sanitizeHtml(form.cleaned_data['title'])
+        if form.cleaned_data['notes']: obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
+        if form.cleaned_data['tags']: obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
+        if 'updated' in obj: del(obj['updated'])
+        if not snapshot in obj: obj['snapshot']=[]
+        if snapshot and snapshot not in obj['snapshot']: obj['snapshot'].append(unicode(snapshot))
     else: # create
         obj=db.Bookmark({'url': url,
                          'seq': getNextVal('seq'),
@@ -220,10 +236,23 @@ def add(request,url=None):
                          'title': sanitizeHtml(form.cleaned_data['title']),
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
                          'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
+                         'snapshot': [unicode(snapshot)],
                         })
-        obj.save()
-    return HttpResponse("close")
-    #return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+    obj.save()
+    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+
+def getcsrf(request):
+    done=False
+    if request.method == 'GET':
+        form = AddBookmarkForm(request.GET)
+    elif request.method == 'POST':
+        form = AddBookmarkForm(request.POST)
+    else:
+        return HttpResponse("wrong method")
+    try: user=User.objects.get(username=request.user)
+    except ObjectDoesNotExist:
+        return HttpResponseRedirect("/accounts/login")
+    return HttpResponse("%s" % str(csrf(request)['csrf_token']))
 
 slugRe=re.compile(r'^[0-9A-Za-z]+$')
 def getItemByUrl(url):
@@ -249,11 +278,12 @@ def view(request,shurl):
              'created': tuple(item['created'].timetuple()),
              'private': item['private'],
              'notes': unicode(unescape(item['notes'])),
-             'tags': item['tags']
+             'tags': item['tags'],
              }
         return HttpResponse(json.dumps(res),
                             mimetype="application/json")
     else:
+        item['snapshot'] = '' if not item.get('snapshot') else item.get('snapshot')[0]
         return render_to_response('view.html',
                                   { 'item': item, },
                                   context_instance=RequestContext(request))
@@ -263,15 +293,21 @@ def shurlect(request,shurl):
     return HttpResponseRedirect("%s" % (item['url']))
 
 def gmscript(request):
-    #return HttpResponse(json.dumps(res),mimetype="application/json")
     return render_to_response('tagr.user.js',mimetype="application/javascript")
 
 def delete(request,url):
+    if not request.user.is_authenticated():
+        return HttpResponseRedirect("/accounts/login")
     url=fixApacheMadness(url)
     try:
         user=User.objects.get(username=request.user)
         db = get_database()[Bookmark.collection_name]
-        obj=db.remove({'url':url, 'user': unicode(request.user)})
+        obj=db.find_one({'url':url, 'user': unicode(request.user)})
+        for hash in obj.get('snapshot',[]):
+            fname="%s/snapshots/%s" % (settings.BASE_PATH, hash)
+            if os.path.exists(fname):
+                os.unlink(fname)
+        db.remove({'url':url, 'user': unicode(request.user)})
     except ObjectDoesNotExist:
         print "meh delete not working. user, url or obj not existing"
     return HttpResponseRedirect('/u/%s/' % request.user)
@@ -414,3 +450,10 @@ def bibtex(request, url):
 """ % base
 
 	return HttpResponse(json.dumps(ctx))
+
+@gzip_page
+def getSnapshot(request, hash):
+    f=gzip.open("%s/snapshots/%s" % (settings.BASE_PATH, hash), 'rb')
+    res=HttpResponse(f.read())
+    f.close()
+    return res

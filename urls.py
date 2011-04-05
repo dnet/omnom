@@ -12,12 +12,14 @@ urlpatterns = patterns('',
     (r'^tagr\.user\.js', tags.gmscript),
     (r'^tags/', tags.tags),
     (r'^add/', tags.add),
+    (r'^c/', tags.getcsrf),
     (r'^edit/(?P<url>.+)', tags.add),
     (r'^del/(?P<url>.+)', tags.delete),
     (r'^bibtex/(?P<url>.+)', tags.bibtex),
     (r'^import/', tags.load),
     (r'^v/(?P<shurl>.+)?', tags.view),
     (r'^r/(?P<shurl>.+)?', tags.shurlect),
+    (r'^s/(?P<hash>.+)?', tags.getSnapshot),
     (r'^$', tags.show),                                       # list all (except private)
     (r'^t/(?P<tags>.+)?', tags.show),                         # ... filtered by tags
     (r'^u/(?P<user>.+)/$', tags.show),                        # list only users items
