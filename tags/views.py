@@ -118,7 +118,8 @@ def show(request,tags=[],user=None):
     else:
         tpl='list.html'
 
-    res.object_list=[{'url': obj['url'],
+    res.object_list=[{'seq': obj['seq'],
+                      'url': obj['url'],
                       'user': obj['user'],
                       'title': obj['title'],
                       'created': obj['created'],
@@ -151,6 +152,27 @@ def urlSanitize(url):
     tmp=list(pcs)
     tmp[4]='&'.join([x for x in pcs.query.split('&') if not utmRe.match(x)])
     return urlunparse(tmp)
+
+def purloin(request,id):
+    try: id = int(id)
+    except: return HttpResponse("error: not an integer: %s" % id)
+    db = get_database()[Bookmark.collection_name]
+    fromobj=db.find_one({'seq': id})
+    if not fromobj:
+        return HttpResponse("error: no such object")
+
+    obj=db.Bookmark({'url': fromobj['url'],
+                     'seq': getNextVal('seq'),
+                     'user': unicode(request.user),
+                     'created': datetime.today(),
+                     'private': False,
+                     'title': fromobj['title'],
+                     'notes': unicode(""),
+                     'tags': fromobj['tags'],
+                     'snapshot': fromobj.get('snapshot', []),
+                     })
+    obj.save()
+    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
 
 def add(request,url=None):
     done=False

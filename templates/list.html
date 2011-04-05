@@ -65,7 +65,7 @@
 	<a href="{%root_url%}/del/{{item.url|urlencode}}">Delete</a>
   {%else %}
 	{% if user.is_active %}
-	<a href="{%root_url%}/add/{{item.url|urlencode}}">Purloin</a>
+	<a href="{%root_url%}/purloin/{{item.seq}}">Purloin</a>
 	{% endif %}
   {%endif%}
   </div>
