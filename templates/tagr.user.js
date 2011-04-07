@@ -21,7 +21,6 @@
    var delicious=true;
    var fetching=0;
    var csrfmiddlewaretoken='';
-   var loaded=false;
    var newsheets=[];
    var styles=[];
    var console=unsafeWindow.console;
@@ -43,16 +42,16 @@
    function initWidget() {
      // prefetch session
      GM_xmlhttpRequest({ method: "head",
-                         url: "{%root_url%}/"
+                         url: "{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/"
                        });
      var odiv = document.createElement('div');
      odiv.id = 'tagr_div';
      odiv.style.display = 'none';
 
-     var top=(WindowHeight()-380)/2;
+     var top=(WindowHeight()-360)/2;
      var left=(window.innerWidth-580)/2;
      odiv.style.cssText = 'border: 1px solid grey; background: white; position:fixed; z-index:999999; top:'+
-       top+'px; left:'+left+'px; width: 580px; height: 380px; text-align: justify';
+       top+'px; left:'+left+'px; width: 580px; height: 360px; text-align: justify';
 
      var tagrframe = document.createElement('div');
      tagrframe.id = 'tagr_frame';
@@ -69,16 +68,16 @@
 
    function toggleWidget(tagr) {
      if(tagr.style.display != 'block') {
-       fetching=0; loaded=false;
+       fetching=0;
        window.parent.document.getElementById('id_url').value=window.parent.document.location.href;
        window.parent.document.getElementById('id_title').value=window.parent.document.title;
        window.parent.document.getElementById('id_notes').value=getSelected();
        // prefetch credentials
        GM_xmlhttpRequest({ method: "head",
-                           url: "{%root_url%}/",
+                           url: "{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/",
                            onload: function(e) {
                              GM_xmlhttpRequest({ method: "get",
-                                                 url: '{%root_url%}/c/',
+                                                 url: '{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/c/',
                                                  onload: function (e) {
                                                    csrfmiddlewaretoken=e.responseText;
                                                  }});
@@ -89,12 +88,14 @@
                              url: 'https://api.del.icio.us/v1/posts/suggest?url='+encodeURIComponent(window.parent.document.location.href),
                              onload: updateSuggestedTags
                            });}
+       window.parent.document.getElementById('omnom_close').addEventListener('click',function(e) {toggleWidget(tagr);}, true);
        window.addEventListener('submit', interceptor, true);
        doSnapshot();
      } else {
        tagr.style.display = 'none';
        buildForm(window.parent.document.getElementById('tagr_frame'));
        window.removeEventListener("submit", interceptor, true);
+       window.parent.document.getElementById('omnom_close').removeEventListener('click',function(e) {toggleWidget(tagr);}, true);
      }
    }
 
@@ -103,7 +104,7 @@
      div.style.display = 'none';
      document.body.appendChild(div);
      div.innerHTML=ev.responseText;
-     unsafeWindow.addEventListener('click', tagClick, true);
+     window.addEventListener('click', tagClick, true);
 
      var tags=window.parent.document.getElementById('tagr_tagsuggestion');
      var elems = window.parent.document.getElementsByTagName( "recommended" );
@@ -147,14 +148,14 @@
      var meta=store.contentDocument.createElement('meta');
      meta.setAttribute('http-equiv','content-type');
      meta.setAttribute('content','text/html; charset=utf-8');
-     store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+     store.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
 
      meta=store.contentDocument.createElement('meta');
      meta.setAttribute('name','generator');
      meta.setAttribute('content','omnom userscript snapshooter');
      meta.setAttribute('timestamp',new Date().toISOString());
      meta.setAttribute('ua', window.navigator.userAgent);
-     store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
+     store.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
    }
 
    function delNode(id) {
@@ -274,7 +275,7 @@
        // also handle list-style-image
        for(ruleName in {'background':null, 'background-image':null, 'list-style-image': null, 'list-style': null}) {
          if(!sheet.cssRules[i].style[ruleName]) continue;
-         var bgImgRule=sheet.cssRules[i].style[ruleName].match(/(.*url\()['"]?(.*[^'")])['"]?(\).*)/i);
+         var bgImgRule=sheet.cssRules[i].style[ruleName].match(/(.*url\() *['"]?(.*[^'")])['"]? *(\).*)/i);
          if(!bgImgRule) continue;
          // inline background-image urls
          var url=bgImgRule[2];
@@ -325,13 +326,14 @@
      var ruleName=null;
      for(i in rules) {
         ruleName=rules[i];
-        if(ruleName && ruleName in thisNode.style) {
-           var bgImgRule=thisNode.style[ruleName].match(/(.*url\()['"]?(.*[^'"])['"]?(\).*)/i);
-           if(!bgImgRule) return;
+        if(ruleName && thisNode.style.getPropertyValue(ruleName) != '' ) {
+           var bgImgRule=thisNode.style.getPropertyValue(ruleName).match(/(.*url\() *['"]?(.*[^'"])['" ]? *(\).*)/i);
+           if(!bgImgRule) continue;
+           //alert(thisNode.style.cssText+'\n'+ruleName+'\n'+thisNode.style.getPropertyValue(ruleName)+'\n'+bgImgRule[2]);
            // inline background-image urls
            var url=bgImgRule[2];
            // skip already inlined images
-           if(url.slice(0,5)=='data:') { return; }
+           if(url.slice(0,5)=='data:') { continue; }
            updateStatus(1);
            url=toAbsURI(url);
            GM_xmlhttpRequest({ method: "get",
@@ -351,7 +353,7 @@
                                  var matched = e.responseHeaders.match(re);
                                  if(matched[1].slice(0,6)=='image/') {
                                    var dataurl = 'data:'+((matched)? matched[1]: "")+";base64,"+Base64.encode(e.responseText);
-                                   this.item[this.ruleName]=this.rule[1]+dataurl+this.rule[3];
+                                   this.item.setProperty(this.ruleName,this.rule[1]+dataurl+this.rule[3],'');
                                  }
                                  updateStatus(-1);
                                }});
@@ -362,9 +364,9 @@
    function dumpElementStyles() {
      // furthermore handle <a style="background-image: url(http://.../i.png);" href="/" title="Visit the main page"></a>
      var iterator = store.contentDocument.evaluate("//*[contains(@style, 'url(')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
-
 	  try {
 	    var thisNode = iterator.iterateNext();
+
 	    while (thisNode) {
          dumpStyleImage(thisNode);
 	      thisNode = iterator.iterateNext();
@@ -479,7 +481,7 @@
 
        // submit the form!
        GM_xmlhttpRequest({ method: 'POST',
-	                        url: '{%root_url%}/add/?close=1',
+	                        url: '{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/add/?close=1',
                            data: 'csrfmiddlewaretoken='+csrf+'&url='+url+'&title='+title+'&notes='+notes+'&page='+snapshot,
                            headers: [{'Content-type': 'application/x-www-form-urlencoded'}],
                            onload: submitForm
@@ -529,31 +531,32 @@
 
    function buildForm(tagrframe) {
      tagrframe.innerHTML=('<style id="tagr_styles"> \
-                          #tagr_frame { border: 0; padding: 0;border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 10px; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
-                          #tagr_div * { font-size: 12px; color: #666; font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; } \
+                          #tagr_frame * { font-size: 12px; font-weight: normal; color: #666; font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; border: none; padding: 0; margin: 0; text-align:left; vertical-align:top; background: #fff; font-weight: normal; } \
+                          #tagr_frame { border: 0; overflow:hidden; padding:12px 0 12px 10px; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
                           #tagr_frame [rel=tag] { background-color: #ddd; margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; } \
                           #tagr_frame [rel=tag]:hover { text-decoration: none; color: #fff; } \
-                          #tagr_frame input, #tagr_frame textarea { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; } \
+                          #tagr_frame input, #tagr_frame textarea { -moz-border-radius: 0px;  border: 1px solid #0088DD; background: #FFFFFF; color: #666666; } \
                           #tagr_frame .button { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; padding: 0px 6px 0px 6px; margin: 4px; text-decoration: none; color: #666666;} \
                           #tagr_frame fieldset { font-size: 0.8em; margin-bottom: 0.7em; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
                           #tagr_frame a { text-decoration: none; color: #0088dd; } \
                           #tagr_frame a[href]:hover { text-decoration: none; color: #000; } \
-                          #tagr_frame input[type=text], #tagr_div textarea { width: 420px; } \
+                          #tagr_frame input[type=text], #tagr_div textarea { width: 98%; } \
                           #tagr_frame .suggestedTag { cursor: pointer ; color: #0088dd; } \
-                          #tagr_frame .xfolkentry {} \
+                          #tagr_frame label { margin-right: 6px; } \
                           #tagr_frame .xfolkentry [rel=tag] {float: right; } \
                           #tagr_frame ul.tags { margin: 0px; padding:5px 0 5px 65px;} \
                           #tagr_frame .tags li { display: inline; list-style: none; }  \
+                          #tagr_tagsuggestion { font-size:10px; margin:0 0 0 -12px; max-height:54px; overflow:auto; padding:0 6px 0 16px; width:95%; }  \
                           </style> \
-                          <form method="get" action="{%root_url%}/add/" id="tagr_addForm" name="addForm" class="xfolkentry"> \
+                          <form method="get" action="{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/add/" id="tagr_addForm" name="addForm" class="xfolkentry"> \
                           <table><tbody> \
                           <tr><td><label for="id_url">UR Location</label></td><td><input type="text" id="id_url" name="url"></td></tr> \
                           <tr><td><label for="id_title">Title</label></td><td><input type="text" id="id_title" name="title"></td></tr> \
-                          <tr><td><label for="id_notes">Notes</label></td><td><textarea name="notes" cols="40" rows="10" id="id_notes"></textarea></td></tr> \
+                          <tr><td><label for="id_notes">Notes</label></td><td><textarea name="notes" cols="40" rows="6" id="id_notes"></textarea></td></tr> \
                           <tr><td><label for="id_tags">Tags</label></td><td><input type="text" id="id_tags" name="tags"></td></tr> \
-                          <tr><td>Recommended&nbsp;Tags</td><td width="100%" id="tagr_tagsuggestion">None</td></tr> \
                           <tr><td><label for="id_private">Private</label></td><td><input type="checkbox" id="id_private" name="private"></td></tr> \
-                          <tr><td></td><td><input type="submit" value="save"><input type="button" value="cancel"></td></tr> \
+                          <tr><td></td><td><input type="submit" value="save"><input type="button" id="omnom_close" value="cancel"></td></tr> \
+                          <tr><td>Recommended&nbsp;Tags</td><td width="100%"><div id="tagr_tagsuggestion"></div></td></tr> \
                           </tbody></table> \
                           <input type="hidden" id="id_page" name="page"> \
                           </form>');
