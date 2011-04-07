@@ -7,7 +7,6 @@
 #tagr_div fieldset { font-size: 0.8em; margin-bottom: 14px; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;}
 #tagr_div a { text-decoration: none; color: #0088dd; }
 #tagr_div a[href]:hover { text-decoration: none; color: #000; }
-#tagr_div input[type=text] { width: 598px; }
 #tagr_div .suggestedTag { cursor: pointer ; color: #0088dd; }
 #tagr_div .xfolkentry {border-top:1px solid #E9E9E9; overflow:hidden; padding:12px 0 12px 65px;width:800px;}
 #tagr_div .xfolkentry [rel=tag] {float: right; }
