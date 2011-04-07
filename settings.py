@@ -118,6 +118,13 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.file'
 ACCOUNT_ACTIVATION_DAYS = 7
 LOGIN_REDIRECT_URL = '/'
 
+TEMPLATE_CONTEXT_PROCESSORS = ("django.contrib.auth.context_processors.auth",
+                               "django.core.context_processors.debug",
+                               "django.core.context_processors.i18n",
+                               "django.core.context_processors.media",
+                               "django.core.context_processors.static",
+                               'django.core.context_processors.request',
+                               "django.contrib.messages.context_processors.messages")
 try:
     from local_settings import *
 except:
