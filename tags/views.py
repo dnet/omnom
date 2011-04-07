@@ -261,7 +261,7 @@ def add(request,url=None):
                          'snapshot': [unicode(snapshot)],
                         })
     obj.save()
-    return HttpResponseRedirect("/v/%s" % base62.from_decimal(obj['seq']))
+    return HttpResponseRedirect("/v/%s?raw=1" % base62.from_decimal(obj['seq']))
 
 def getcsrf(request):
     done=False
@@ -306,7 +306,10 @@ def view(request,shurl):
                             mimetype="application/json")
     else:
         item['snapshot'] = '' if not item.get('snapshot') else item.get('snapshot')[0]
-        return render_to_response('view.html',
+        tpl='view.html'
+        if request.GET.get('raw',None):
+            tpl='view-bare.html'
+        return render_to_response(tpl,
                                   { 'item': item, },
                                   context_instance=RequestContext(request))
 
@@ -315,7 +318,7 @@ def shurlect(request,shurl):
     return HttpResponseRedirect("%s" % (item['url']))
 
 def gmscript(request):
-    return render_to_response('tagr.user.js',mimetype="application/javascript")
+    return render_to_response('tagr.user.js',mimetype="application/javascript",context_instance=RequestContext(request))
 
 def delete(request,url):
     if not request.user.is_authenticated():
