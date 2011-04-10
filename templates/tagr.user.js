@@ -7,13 +7,13 @@
 // Accept the default configuration and install.
 //
 // To uninstall, go to Tools/Manage User Scripts,
-// select "tagr", and click Uninstall.
+// select "omnom", and click Uninstall.
 //
 // --------------------------------------------------------------------
 //
 // ==UserScript==
-// @name           tagr bookmarking script
-// @namespace      tagr
+// @name           omnom bookmarking script
+// @namespace      omnom
 // @include       *
 
 (function () {
@@ -30,11 +30,11 @@
 
    function keyHandler(e) {
      if (e.keyCode == 68 && !e.shiftKey && e.ctrlKey && e.altKey && !e.metaKey) {
-      var tagr=window.parent.document.getElementById('tagr_div');
-       if(!tagr) {
+      var omnom=window.parent.document.getElementById('omnom_div');
+       if(!omnom) {
          initWidget();
        } else {
-         toggleWidget(tagr);
+         toggleWidget(omnom);
        }
      }
    }
@@ -45,7 +45,7 @@
                          url: "{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/"
                        });
      var odiv = document.createElement('div');
-     odiv.id = 'tagr_div';
+     odiv.id = 'omnom_div';
      odiv.style.display = 'none';
 
      var top=(WindowHeight()-360)/2;
@@ -53,21 +53,21 @@
      odiv.style.cssText = 'border: 1px solid grey; background: white; position:fixed; z-index:999999; top:'+
        top+'px; left:'+left+'px; width: 580px; height: 360px; text-align: justify';
 
-     var tagrframe = document.createElement('div');
-     tagrframe.id = 'tagr_frame';
-     buildForm(tagrframe);
-     odiv.appendChild(tagrframe);
+     var omnomframe = document.createElement('div');
+     omnomframe.id = 'omnom_frame';
+     buildForm(omnomframe);
+     odiv.appendChild(omnomframe);
 
      var snapstat = document.createElement('div');
-     snapstat.id = 'tagr_snapshotStatus';
+     snapstat.id = 'omnom_snapshotStatus';
      snapstat.style.cssText = 'border: 1px solid grey; position: absolute; bottom: 0px; width: 100%; height: 1.2em; padding 3px;';
      odiv.appendChild(snapstat);
      document.getElementsByTagName('body')[0].appendChild(odiv);
      toggleWidget(odiv);
    }
 
-   function toggleWidget(tagr) {
-     if(tagr.style.display != 'block') {
+   function toggleWidget(omnom) {
+     if(omnom.style.display != 'block') {
        fetching=0;
        window.parent.document.getElementById('id_url').value=window.parent.document.location.href;
        window.parent.document.getElementById('id_title').value=window.parent.document.title;
@@ -82,20 +82,20 @@
                                                    csrfmiddlewaretoken=e.responseText;
                                                  }});
                            }});
-       tagr.style.display = 'block';
+       omnom.style.display = 'block';
        if(delicious) {
          GM_xmlhttpRequest({ method: "get",
                              url: 'https://api.del.icio.us/v1/posts/suggest?url='+encodeURIComponent(window.parent.document.location.href),
                              onload: updateSuggestedTags
                            });}
-       window.parent.document.getElementById('omnom_close').addEventListener('click',function(e) {toggleWidget(tagr);}, true);
+       window.parent.document.getElementById('omnom_close').addEventListener('click',function(e) {toggleWidget(omnom);}, true);
        window.addEventListener('submit', interceptor, true);
        doSnapshot();
      } else {
-       tagr.style.display = 'none';
-       buildForm(window.parent.document.getElementById('tagr_frame'));
+       omnom.style.display = 'none';
+       buildForm(window.parent.document.getElementById('omnom_frame'));
        window.removeEventListener("submit", interceptor, true);
-       window.parent.document.getElementById('omnom_close').removeEventListener('click',function(e) {toggleWidget(tagr);}, true);
+       window.parent.document.getElementById('omnom_close').removeEventListener('click',function(e) {toggleWidget(omnom);}, true);
      }
    }
 
@@ -106,7 +106,7 @@
      div.innerHTML=ev.responseText;
      window.addEventListener('click', tagClick, true);
 
-     var tags=window.parent.document.getElementById('tagr_tagsuggestion');
+     var tags=window.parent.document.getElementById('omnom_tagsuggestion');
      var elems = window.parent.document.getElementsByTagName( "recommended" );
      for(var i=0; i < elems.length; i++) {
        var span = document.createElement('span');
@@ -129,11 +129,44 @@
      }
    }
 
-   function cloneDoc() {
-     store.contentDocument.innerHTML='';
-     store.contentDocument.open();
-     store.contentDocument.write(window.document.documentElement.innerHTML);
-     store.contentDocument.close();
+   function cloneDoc(srcnode,trgnode) {
+      var thisNode=null;
+      for(i in srcnode.childNodes) {
+         thisNode=srcnode.childNodes[i];
+         // ignore <script> and anything id="omnom_.*'
+         if((thisNode.tagName && thisNode.tagName.toLowerCase() == 'script' ) ||
+               (thisNode.tagName && thisNode.tagName.toLowerCase() == 'noscript' ) ||
+               (thisNode.id && thisNode.id.match(/omnom.*/i) )) {
+            continue;
+         }
+         if (thisNode.tagName && thisNode.tagName.toLowerCase() == 'iframe') {
+            // substitute iframes 
+            //var iframe=store.contentDocument.createElement('iframe');
+            // http://www.cnbc.com/id/36999483
+            var iframe=thisNode.cloneNode(false);
+            iframe.src=toAbsURI(thisNode.src);
+            for(j in thisNode.attributes) {
+               if(thisNode.attributes[j].name &&
+                  thisNode.attributes[j].name.toLowerCase()!='src') {
+                  iframe.setAttribute(thisNode.attributes[j].name,
+                                      thisNode.attributes[j].value);
+               }
+            }
+            trgnode.appendChild(iframe);
+         } else {
+            var newnode=thisNode.cloneNode(false);
+            trgnode.appendChild(newnode);
+            cloneDoc(thisNode,newnode);
+         }
+      }
+   }
+
+   function copyDoc() {
+     var tmp=store.contentDocument.getElementsByTagName("head")[0];
+     tmp.parentNode.removeChild(tmp);
+     tmp=store.contentDocument.getElementsByTagName("body")[0];
+     tmp.parentNode.removeChild(tmp);
+     cloneDoc(window.document.documentElement,store.contentDocument.documentElement);
      // update content/charset
      var iterator = store.contentDocument.evaluate("//meta[@http-equiv='Content-Type' and contains(@content, 'charset')]", store.contentDocument, null, XPathResult.UNORDERED_NODE_ITERATOR_TYPE, null );
      try {
@@ -150,6 +183,7 @@
      meta.setAttribute('content','text/html; charset=utf-8');
      store.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
 
+     // add omnom metadata
      meta=store.contentDocument.createElement('meta');
      meta.setAttribute('name','generator');
      meta.setAttribute('content','omnom userscript snapshooter');
@@ -158,17 +192,10 @@
      store.contentDocument.getElementsByTagName("head")[0].appendChild(meta);
    }
 
-   function delNode(id) {
-     var tmp=store.contentDocument.getElementById(id);
-     if (tmp) {
-       tmp.parentNode.removeChild(tmp);
-     }
-   }
-
    function doSnapshot() {
-     var status = window.parent.document.getElementById( "tagr_snapshotStatus" );
+     var status = window.parent.document.getElementById( "omnom_snapshotStatus" );
      status.innerHTML="Snapshotting...";
-     cloneDoc();
+     copyDoc();
      // convert images to dataurls
      // background attribs of elems
      dumpImages();
@@ -179,11 +206,6 @@
 
      // convert link rel=stylesheet to <style elements>
      inlineCSS();
-
-     //dumpScripts();
-     // nah rather nix them. safer.
-     var elems = store.contentDocument.getElementsByTagName( "script" );
-     while(elems.length) { elems[0].parentNode.removeChild(elems[0]); }
 
      // does this work? nah, unfortunately blank images served. :(
      //dumpCanvas();
@@ -196,23 +218,36 @@
      // parse and convert from original css
      var elems = window.document.styleSheets;
      var storelems = store.contentDocument.styleSheets;
-     if(elems.length!=storelems.length) {
-        alert("huh? bug bounty, send me the current url pls.\norig and store have differing stylesheet arrays "+elems.length+" "+storelems.length);
-     }
      for(var i=0; i < elems.length; i++) {
         updateStatus(1);
         if((elems[i].ownerNode.getAttribute('rel') || '').toLowerCase()=='stylesheet') {
            // fetch <link rel='stylesheet' href='<url>'> and inline it
            //alert('fetch '+elems[i].ownerNode.href);
            var j=styles.length;
-           styles.push(['',storelems[i].ownerNode]); // placeholder for async results
+           if(!storelems[i]) {
+              var style = store.contentDocument.createElement("style");
+              style.media=elems[i].media.mediaText || 'all';
+              //alert('link '+getXPath(elems[i].ownerNode).join('/'));
+              store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(style);
+              styles.push(['',style]); // placeholder for async results
+           } else {
+              styles.push(['',storelems[i].ownerNode]); // placeholder for async results
+           }
            fetchSheet(elems[i].ownerNode.href, elems[i].media.mediaText || 'all', null, j);
         } else {
           // handle <style> elements
           var style=CSSOM.parse(elems[i].ownerNode.innerHTML);
           style.media=elems[i].media.mediaText;
           style.base=window.document.baseURI;
-          styles.push([style,storelems[i].ownerNode]);
+          if(!storelems[i]) {
+             var stylelm = store.contentDocument.createElement("style");
+             stylelm.media=elems[i].media.mediaText || 'all';
+             //alert('style '+getXPath(elems[i].ownerNode).join('/'));
+             store.wrappedJSObject.contentDocument.getElementsByTagName("head")[0].appendChild(stylelm);
+             styles.push([style,stylelm]);
+          } else {
+             styles.push([style,storelems[i].ownerNode]);
+          }
           inlineSheet(style);
         }
        updateStatus(-1);
@@ -424,7 +459,7 @@
 
    function updateStatus(code) {
      fetching+=code;
-     var status = window.parent.document.getElementById( "tagr_snapshotStatus" );
+     var status = window.parent.document.getElementById( "omnom_snapshotStatus" );
      if(fetching) {
        status.innerHTML="Snapshotting... "+fetching+" objects";
      } else {
@@ -447,7 +482,7 @@
 
    function interceptor(e) {
      var frm = e.target;
-     if (frm.id=='tagr_addForm') {
+     if (frm.id=='omnom_addForm') {
        e.stopPropagation();
        e.preventDefault();
        var csrf=csrfmiddlewaretoken;
@@ -456,10 +491,6 @@
        var notes=encodeURIComponent(window.parent.document.getElementById('id_notes').value);
        var tags=encodeURIComponent(window.parent.document.getElementById('id_tags').value);
        var priv=encodeURIComponent(window.parent.document.getElementById('id_private').value);
-       // FIXME somehow doesn't delete tagr_store iframe
-       delNode("tagr_store");
-       delNode("tagr_div");
-       delNode("tagr_styles");
        if(fetching) { // we don't wait for long timeouts.
           exportCSS();
        }
@@ -493,19 +524,19 @@
    };
 
    function submitForm(results){
-     var tagr=window.parent.document.getElementById('tagr_div');
+     var omnom=window.parent.document.getElementById('omnom_div');
      if(results.responseText=='close') {
        // hide the form automatically
-       toggleWidget(tagr);
+       toggleWidget(omnom);
      } else {
        // show the response
-       window.parent.document.getElementById('tagr_frame').innerHTML=results.responseText;
+       window.parent.document.getElementById('omnom_frame').innerHTML=results.responseText;
      }
    }
 
    function gotFrame(iframe, win, doc) {
      iframe.style.display='none';
-     iframe.id='tagr_store';
+     iframe.id='omnom_store';
      store=iframe;
    }
 
@@ -529,26 +560,26 @@
      return scheme+'://'+host+'/'+path+'/'+uri;
    }
 
-   function buildForm(tagrframe) {
-     tagrframe.innerHTML=('<style id="tagr_styles"> \
-                          #tagr_frame * { font-size: 12px; font-weight: normal; color: #666; font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; border: none; padding: 0; margin: 0; text-align:left; vertical-align:top; background: #fff; font-weight: normal; } \
-                          #tagr_frame { border: 0; overflow:hidden; padding:12px 0 12px 10px; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
-                          #tagr_frame [rel=tag] { background-color: #ddd; margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; } \
-                          #tagr_frame [rel=tag]:hover { text-decoration: none; color: #fff; } \
-                          #tagr_frame input, #tagr_frame textarea { -moz-border-radius: 0px;  border: 1px solid #0088DD; background: #FFFFFF; color: #666666; } \
-                          #tagr_frame .button { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; padding: 0px 6px 0px 6px; margin: 4px; text-decoration: none; color: #666666;} \
-                          #tagr_frame fieldset { font-size: 0.8em; margin-bottom: 0.7em; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
-                          #tagr_frame a { text-decoration: none; color: #0088dd; } \
-                          #tagr_frame a[href]:hover { text-decoration: none; color: #000; } \
-                          #tagr_frame input[type=text], #tagr_div textarea { width: 98%; } \
-                          #tagr_frame .suggestedTag { cursor: pointer ; color: #0088dd; } \
-                          #tagr_frame label { margin-right: 6px; } \
-                          #tagr_frame .xfolkentry [rel=tag] {float: right; } \
-                          #tagr_frame ul.tags { margin: 0px; padding:5px 0 5px 65px;} \
-                          #tagr_frame .tags li { display: inline; list-style: none; }  \
-                          #tagr_tagsuggestion { font-size:10px; margin:0 0 0 -12px; max-height:54px; overflow:auto; padding:0 6px 0 16px; width:95%; }  \
+   function buildForm(omnomframe) {
+     omnomframe.innerHTML=('<style id="omnom_styles"> \
+                          #omnom_frame * { font-size: 12px; font-weight: normal; color: #666; font-family: Verdana,Arial,Helvetica,sans-serif; text-align: justify; border: none; padding: 0; margin: 0; text-align:left; vertical-align:top; background: #fff; font-weight: normal; } \
+                          #omnom_frame { border: 0; overflow:hidden; padding:12px 0 12px 10px; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
+                          #omnom_frame [rel=tag] { background-color: #ddd; margin-left: 5px; margin-bottom: 2px; padding: 1px; 1px 1px 1px; } \
+                          #omnom_frame [rel=tag]:hover { text-decoration: none; color: #fff; } \
+                          #omnom_frame input, #omnom_frame textarea { -moz-border-radius: 0px;  border: 1px solid #0088DD; background: #FFFFFF; color: #666666; } \
+                          #omnom_frame .button { border: 1px solid #0088DD; background: #FFFFFF; color: #666666; padding: 0px 6px 0px 6px; margin: 4px; text-decoration: none; color: #666666;} \
+                          #omnom_frame fieldset { font-size: 0.8em; margin-bottom: 0.7em; border: 1px solid #0088DD; -moz-border-radius: 0.5em; -webkit-border-radius: 0.5em;} \
+                          #omnom_frame a { text-decoration: none; color: #0088dd; } \
+                          #omnom_frame a[href]:hover { text-decoration: none; color: #000; } \
+                          #omnom_frame input[type=text], #omnom_div textarea { width: 98%; } \
+                          #omnom_frame .suggestedTag { cursor: pointer ; color: #0088dd; } \
+                          #omnom_frame label { margin-right: 6px; } \
+                          #omnom_frame .xfolkentry [rel=tag] {float: right; } \
+                          #omnom_frame ul.tags { margin: 0px; padding:5px 0 5px 65px;} \
+                          #omnom_frame .tags li { display: inline; list-style: none; }  \
+                          #omnom_tagsuggestion { font-size:10px; margin:0 0 0 -12px; max-height:54px; overflow:auto; padding:0 6px 0 16px; width:95%; }  \
                           </style> \
-                          <form method="get" action="{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/add/" id="tagr_addForm" name="addForm" class="xfolkentry"> \
+                          <form method="get" action="{% if request.is_secure %}https{% else %}http{% endif %}://{{request.get_host}}/add/" id="omnom_addForm" name="addForm" class="xfolkentry"> \
                           <table><tbody> \
                           <tr><td><label for="id_url">UR Location</label></td><td><input type="text" id="id_url" name="url"></td></tr> \
                           <tr><td><label for="id_title">Title</label></td><td><input type="text" id="id_title" name="title"></td></tr> \
@@ -556,7 +587,7 @@
                           <tr><td><label for="id_tags">Tags</label></td><td><input type="text" id="id_tags" name="tags"></td></tr> \
                           <tr><td><label for="id_private">Private</label></td><td><input type="checkbox" id="id_private" name="private"></td></tr> \
                           <tr><td></td><td><input type="submit" value="save"><input type="button" id="omnom_close" value="cancel"></td></tr> \
-                          <tr><td>Recommended&nbsp;Tags</td><td width="100%"><div id="tagr_tagsuggestion"></div></td></tr> \
+                          <tr><td>Recommended&nbsp;Tags</td><td width="100%"><div id="omnom_tagsuggestion"></div></td></tr> \
                           </tbody></table> \
                           <input type="hidden" id="id_page" name="page"> \
                           </form>');
@@ -580,31 +611,38 @@
 //     }
 //   }
 
-//   function dumpScripts() {
-//     var elems = store.contentDocument.wrappedJSObject.getElementsByTagName( "script" );
-//     for(var i=0; i < elems.length; i++) {
-//       var src = elems[i].getAttribute('src');
-//       if(src) {
-//         //alert('dumping script '+src);
-//         updateStatus(1);
-//         GM_xmlhttpRequest({ method: "get",
-//                             url: src,
-//                             overrideMimeType: 'text/plain; charset=x-user-defined',
-//                             item: elems[i],
-//                             onerror: function(e) { updateStatus(-1); },
-//                             onload: function(e) {
-//                               var dataurl='data:text/javascript;base64,'+Base64.encodeBinary('//<![CDATA[\n// source: '+this.url+'\n'+e.responseText+'\n//]]>');
-//                               this.item.setAttribute('src',dataurl);
-//                               updateStatus(-1);
-//                               //alert('dumping script '+this.item.innerHTML);
-//                             }});
-//       } else {
-//         var dataurl='data:text/javascript;base64,'+Base64.encodeBinary(elems.item(i).innerHTML);
-//         elems.item(i).setAttribute('src',dataurl);
-//         elems.item(i).innerHTML=" ";
-//       }
-//     }
-//   }
+   function getXPath(node, path) {
+     path = path || [];
+     if(node.parentNode) {
+       path = getXPath(node.parentNode, path);
+     }
+
+     if(node.previousSibling) {
+       var count = 1;
+       var sibling = node.previousSibling
+       do {
+         if(sibling.nodeType == 1 && sibling.nodeName == node.nodeName) {count++;}
+         sibling = sibling.previousSibling;
+       } while(sibling);
+       if(count == 1) {count = null;}
+     } else if(node.nextSibling) {
+       var sibling = node.nextSibling;
+       do {
+         if(sibling.nodeType == 1 && sibling.nodeName == node.nodeName) {
+           var count = 1;
+           sibling = null;
+         } else {
+           var count = null;
+           sibling = sibling.previousSibling;
+         }
+       } while(sibling);
+     }
+
+     if(node.nodeType == 1) {
+       path.push(node.nodeName.toLowerCase() + (node.id ? "[@id='"+node.id+"']" : count > 0 ? "["+count+"]" : ''));
+     }
+     return path;
+   };
 
    // Creates a new iframe and attaches it to the DOM, waits for it to load, tests
    // that we did not hit https://bugzilla.mozilla.org/show_bug.cgi?id=295813 nor
