@@ -19,6 +19,7 @@ from urlparse import urljoin, urlparse, urlunparse
 from counter import getNextVal
 from baseconv import base62
 import urllib2, re, urllib, json, pymongo, hashlib, gzip, os
+from itertools import ifilterfalse
 
 from django_mongokit import get_database
 database = get_database()
@@ -126,13 +127,13 @@ def show(request,tags=[],user=None):
                       'private': obj['private'],
                       'snapshot': '' if not obj.get('snapshot') else obj.get('snapshot')[0],
                       'notes': unescape(obj['notes']),
-                      'tags': [unicode(x) for x in obj['tags']]
+                      'tags': map(unicode, obj['tags'])
                       } for obj in res.object_list]
     return render_to_response(tpl,
                               { 'items': res,
                                 'limit': limit,
                                 'total': total,
-                                'tags': [(tag, "+".join([t for t in tags if not t == tag]) if len(tags)>1 else path) for tag in tags] if tags else [],
+                                'tags': [(tag, "+".join(t for t in tags if not t == tag) if len(tags)>1 else path) for tag in tags] if tags else [],
                                 'tagcloud': json.dumps(tagcloud),
                                 'baseurl': baseurl,
                                 'path': request.path},
@@ -150,7 +151,7 @@ def urlSanitize(url):
     # removes annoying UTM params to urls.
     pcs=urlparse(urllib.unquote_plus(url))
     tmp=list(pcs)
-    tmp[4]='&'.join([x for x in pcs.query.split('&') if not utmRe.match(x)])
+    tmp[4]='&'.join(ifilterfalse(utmRe.match, pcs.query.split('&')))
     return urlunparse(tmp)
 
 def purloin(request,id):
