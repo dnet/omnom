@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 
 from BeautifulSoup import BeautifulSoup
 from datetime import datetime
+from itertools import imap
 import sys, tidy, re, htmlentitydefs
 
 def unescape(text):
@@ -63,7 +64,7 @@ class Command(BaseCommand):
             if next:
                 next=next[0]
                 if 'name' in dir(next) and next.name=='dd':
-                    desc=u''.join([unicode(x) for x in next.contents])
+                    desc=u''.join(imap(unicode, next.contents))
             try:
                 url=URI.objects.get(url=item.a['href'])
             except ObjectDoesNotExist:
@@ -77,7 +78,7 @@ class Command(BaseCommand):
                          title=unicode(unescape(item.a.string)),
                          notes=unescape(desc))
             uri.save()
-            uri.tags.add(*[getTag(tag) for tag in item.a['tags'].split(',')])
+            uri.tags.add(*map(getTag, item.a['tags'].split(',')))
             #print uri,uri.created,uri.tags.all()
 
         self.stdout.write('Successfully imported bookmarks\n')
