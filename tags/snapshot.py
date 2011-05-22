@@ -64,8 +64,8 @@ def snapshot(url):
     rootdoc='contents/%s/%s' % (tmp[1],tmp[2])
     if rootdoc[-1]=='/':
         rootdoc="%sindex.html" % rootdoc
-    hashs=gethashes(rootdoc)
-    zhashs=gethashes('contents.zip')
+    hashs=gethashes(rootdoc, d)
+    zhashs=gethashes('contents.zip', d)
 
     rmtree(d)
     return (rootdoc, hashs, '%s/contents.zip' % d, zhashs)
