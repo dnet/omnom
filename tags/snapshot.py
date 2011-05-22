@@ -12,6 +12,16 @@ class HeadRequest(Request):
     def get_method(self):
         return "HEAD"
 
+def gethash(algo, filename, directory):
+    val=Popen(['/usr/bin/%ssum' % algo, filename],
+              stdout=PIPE,
+              cwd=directory).communicate()[0]
+    return val.split(' ', 1)[0]
+
+hashlist = ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512')
+def gethashes(filename, directory):
+    return dict((x, gethash(x, filename, directory)) for x in hashlist)
+
 def snapshot(url):
     # check availability of url
     try:
@@ -54,18 +64,8 @@ def snapshot(url):
     rootdoc='contents/%s/%s' % (tmp[1],tmp[2])
     if rootdoc[-1]=='/':
         rootdoc="%sindex.html" % rootdoc
-    hashs={}
-    for hsh in ['md5sum', 'sha1sum', 'sha224sum', 'sha256sum', 'sha384sum', 'sha512sum']:
-        val=Popen(['/usr/bin/%s' % hsh, rootdoc],
-                  stdout=PIPE,
-                  cwd=d).communicate()[0]
-        hashs[hsh[:-3]]=val.split('\n')[0].split(' ',2)[0]
-    zhashs={}
-    for hsh in ['md5sum', 'sha1sum', 'sha224sum', 'sha256sum', 'sha384sum', 'sha512sum']:
-        val=Popen(['/usr/bin/%s' % hsh, 'contents.zip'],
-                  stdout=PIPE,
-                  cwd=d).communicate()[0]
-        hashs[hsh[:-3]]=val.split('\n')[0].split(' ',2)[0]
+    hashs=gethashes(rootdoc)
+    zhashs=gethashes('contents.zip')
 
     rmtree(d)
     return (rootdoc, hashs, '%s/contents.zip' % d, zhashs)
