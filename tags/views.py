@@ -19,7 +19,7 @@ from urlparse import urljoin, urlparse, urlunparse
 from counter import getNextVal
 from baseconv import base62
 import urllib2, re, urllib, json, pymongo, hashlib, gzip, os
-from itertools import ifilterfalse
+from itertools import ifilterfalse, imap
 
 from django_mongokit import get_database
 database = get_database()
@@ -246,7 +246,7 @@ def add(request,url=None):
         if form.cleaned_data['private']: obj['private']=form.cleaned_data['private']
         if form.cleaned_data['title']: obj['title']=sanitizeHtml(form.cleaned_data['title'])
         if form.cleaned_data['notes']: obj['notes']=sanitizeHtml(form.cleaned_data['notes'])
-        if form.cleaned_data['tags']: obj['tags']=[sanitizeHtml(x) for x in form.cleaned_data['tags'].split(" ")]
+        if form.cleaned_data['tags']: obj['tags']=map(sanitizeHtml, form.cleaned_data['tags'].split(" "))
         if 'updated' in obj: del(obj['updated'])
         if not snapshot in obj: obj['snapshot']=[]
         if snapshot and snapshot not in obj['snapshot']: obj['snapshot'].append(unicode(snapshot))
@@ -258,7 +258,7 @@ def add(request,url=None):
                          'private': form.cleaned_data['private'],
                          'title': sanitizeHtml(form.cleaned_data['title']),
                          'notes': sanitizeHtml(form.cleaned_data['notes']),
-                         'tags': [sanitizeHtml(x) for x in form.cleaned_data['tags'].split(' ')],
+                         'tags': map(sanitizeHtml, form.cleaned_data['tags'].split(' ')),
                          'snapshot': [unicode(snapshot)],
                         })
     obj.save()
@@ -275,7 +275,7 @@ def getcsrf(request):
     try: user=User.objects.get(username=request.user)
     except ObjectDoesNotExist:
         return HttpResponseRedirect("/accounts/login")
-    return HttpResponse("%s" % str(csrf(request)['csrf_token']))
+    return HttpResponse(str(csrf(request)['csrf_token']))
 
 slugRe=re.compile(r'^[0-9A-Za-z]+$')
 def getItemByUrl(url):
@@ -353,10 +353,10 @@ def load(request):
                 if next:
                     next=next[0]
                     if 'name' in dir(next) and next.name=='dd':
-                        desc=unescape(u''.join([unicode(x) for x in next.contents]))
+                        desc=unescape(u''.join(imap(unicode, next.contents)))
                 db.Bookmark({'url': urlSanitize(item.a['href']),
                              'seq': getNextVal('seq'),
-                             'tags': [tag for tag in item.a['tags'].split(',')],
+                             'tags': item.a['tags'].split(','),
                              'user': unicode(request.user),
                              'created': datetime.fromtimestamp(float(item.a['add_date'])),
                              'private': item.a['private']=='1',
@@ -383,7 +383,7 @@ def getCalaisTags(text):
                                     data=urllib.urlencode({'licenseID': conf.openCalaisAPIKey,
                                                            'content': text.encode('utf8'),
                                                            'paramsXML': openCalaisParams }) ))
-    return ['-'.join(item['name'].lower().split(' '))
+    return [item['name'].lower().replace(' ', '-')
             for item in res.values()
             if '_typeGroup' in item and item['_typeGroup']=='socialTag'] # and int(item['importance'])>1]
 
@@ -441,7 +441,7 @@ def traverse(uri):
         opener = urllib2.build_opener(authhandler)
         urllib2.install_opener(opener)
         tree = etree.parse(opener.open("%stags/?uri=%s" % (url,uri)))
-        results.extend([(tag.text, tag.get('class')) for tag in tree.getroot()])
+        results.extend((tag.text, tag.get('class')) for tag in tree.getroot())
     return results
 
 def tags(request):
@@ -463,7 +463,7 @@ def bibtex(request, url):
 
 	ctx["type"] = "MISC"
 	ctx["url"] = obj["url"]
-	base = {"author": "", "title": "", "url": "", "year": "", "notes": ""}
+	base = dict(author='', title='', url='', year='', notes='')
 	base.update(obj)
 	ctx["bibtex"] = """
 @MISC { tagr%(seq)s,
